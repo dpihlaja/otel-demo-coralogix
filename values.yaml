@@ -47,23 +47,43 @@ opentelemetry-agent:
       - 1s
       - 2s
       - 5s
+      # Adds http.endpoint ("GET /api/products/:productId") as a span metrics label,
+      # so RED metrics can be split per endpoint.
+      extraDimensions:
+      - name: http.endpoint
       # Runs on every span before spanmetrics and export.
-      # Envoy (frontend-proxy) names every server span "ingress" and only records the raw
-      # http.url (with sessionId query strings). Derive a low-cardinality http.route and
-      # rename the span "<METHOD> <route>" so APM and span metrics break down per endpoint.
+      # Gives frontend and frontend-proxy server spans a normalized http.route
+      # ("/api/products/:productId") and http.endpoint ("GET /api/products/:productId").
+      # The route patterns are repeated for logs in extraConfig below; keep them in sync.
       transformStatements:
+      # 1. Seed http.route from whatever each service records.
+      #    frontend-proxy (Envoy): only the full http.url.
       - set(attributes["http.route"], attributes["http.url"]) where resource.attributes["service.name"] == "frontend-proxy" and attributes["http.route"] == nil and attributes["http.url"] != nil
-      - replace_pattern(attributes["http.route"], "^[a-z]+://[^/]+", "") where resource.attributes["service.name"] == "frontend-proxy"
-      - replace_pattern(attributes["http.route"], "\\?.*$", "") where resource.attributes["service.name"] == "frontend-proxy"
-      - replace_pattern(attributes["http.route"], "(.)/$", "$$1") where resource.attributes["service.name"] == "frontend-proxy"
-      - replace_pattern(attributes["http.route"], "^/api/products/[A-Z0-9]{10}$", "/api/products/:productId") where resource.attributes["service.name"] == "frontend-proxy"
-      - replace_pattern(attributes["http.route"], "^/product/[A-Z0-9]{10}$", "/product/:productId") where resource.attributes["service.name"] == "frontend-proxy"
-      - replace_pattern(attributes["http.route"], "^/images/products/[^/]+$", "/images/products/:image") where resource.attributes["service.name"] == "frontend-proxy"
-      - replace_pattern(attributes["http.route"], "^/images/[^/]+\\.(png|jpg|svg|webp)$", "/images/:image") where resource.attributes["service.name"] == "frontend-proxy"
-      - replace_pattern(attributes["http.route"], "^/icons/[^/]+$", "/icons/:icon") where resource.attributes["service.name"] == "frontend-proxy"
-      - replace_pattern(attributes["http.route"], "^/_next/static/.*$", "/_next/static/*") where resource.attributes["service.name"] == "frontend-proxy"
+      #    frontend: Next.js sets http.route on its own spans ("/api/products/[productId]/index");
+      #    the generic HTTP server span has only http.target.
+      - set(attributes["http.route"], attributes["http.target"]) where resource.attributes["service.name"] == "frontend" and kind == SPAN_KIND_SERVER and attributes["http.route"] == nil and attributes["http.target"] != nil
+      - set(attributes["http.route"], attributes["url.path"]) where resource.attributes["service.name"] == "frontend" and kind == SPAN_KIND_SERVER and attributes["http.route"] == nil and attributes["url.path"] != nil
+      # 2. Normalize.
+      - replace_pattern(attributes["http.route"], "^[a-z]+://[^/]+", "") where IsMatch(resource.attributes["service.name"], "^frontend(-proxy)?$")
+      - replace_pattern(attributes["http.route"], "\\?.*$", "") where IsMatch(resource.attributes["service.name"], "^frontend(-proxy)?$")
+      - replace_pattern(attributes["http.route"], "\\[([^\\]]+)\\]", ":$$1") where IsMatch(resource.attributes["service.name"], "^frontend(-proxy)?$")
+      - replace_pattern(attributes["http.route"], "^(.+)/index$", "$$1") where IsMatch(resource.attributes["service.name"], "^frontend(-proxy)?$")
+      - replace_pattern(attributes["http.route"], "^/index$", "/") where IsMatch(resource.attributes["service.name"], "^frontend(-proxy)?$")
+      - replace_pattern(attributes["http.route"], "(.)/$", "$$1") where IsMatch(resource.attributes["service.name"], "^frontend(-proxy)?$")
+      - replace_pattern(attributes["http.route"], "^/api/products/[A-Z0-9]{10}$", "/api/products/:productId") where IsMatch(resource.attributes["service.name"], "^frontend(-proxy)?$")
+      - replace_pattern(attributes["http.route"], "^/product/[A-Z0-9]{10}$", "/product/:productId") where IsMatch(resource.attributes["service.name"], "^frontend(-proxy)?$")
+      - replace_pattern(attributes["http.route"], "^/images/products/[^/]+$", "/images/products/:image") where IsMatch(resource.attributes["service.name"], "^frontend(-proxy)?$")
+      - replace_pattern(attributes["http.route"], "^/images/[^/]+\\.(png|jpg|svg|webp)$", "/images/:image") where IsMatch(resource.attributes["service.name"], "^frontend(-proxy)?$")
+      - replace_pattern(attributes["http.route"], "^/icons/[^/]+$", "/icons/:icon") where IsMatch(resource.attributes["service.name"], "^frontend(-proxy)?$")
+      - replace_pattern(attributes["http.route"], "^/_next/static/.*$", "/_next/static/*") where IsMatch(resource.attributes["service.name"], "^frontend(-proxy)?$")
+      # 3. http.endpoint = "<METHOD> <route>" (old and new semconv method attributes).
+      - set(attributes["http.endpoint"], Concat([attributes["http.method"], attributes["http.route"]], " ")) where IsMatch(resource.attributes["service.name"], "^frontend(-proxy)?$") and attributes["http.route"] != nil and attributes["http.method"] != nil
+      - set(attributes["http.endpoint"], Concat([attributes["http.request.method"], attributes["http.route"]], " ")) where IsMatch(resource.attributes["service.name"], "^frontend(-proxy)?$") and attributes["http.route"] != nil and attributes["http.endpoint"] == nil and attributes["http.request.method"] != nil
+      # 4. Rename spans that carry no route in their name: Envoy's "ingress", and frontend's
+      #    bare "GET"/"POST" from the generic HTTP instrumentation.
       - set(attributes["envoy.span_name"], name) where resource.attributes["service.name"] == "frontend-proxy" and name == "ingress"
-      - set(name, Concat([attributes["http.method"], attributes["http.route"]], " ")) where resource.attributes["service.name"] == "frontend-proxy" and name == "ingress" and attributes["http.method"] != nil and attributes["http.route"] != nil
+      - set(name, attributes["http.endpoint"]) where resource.attributes["service.name"] == "frontend-proxy" and name == "ingress" and attributes["http.endpoint"] != nil
+      - set(name, attributes["http.endpoint"]) where resource.attributes["service.name"] == "frontend" and kind == SPAN_KIND_SERVER and IsMatch(name, "^[A-Z]+$") and attributes["http.endpoint"] != nil
     headSampling:
       enabled: true
       percentage: 10.0
@@ -102,6 +122,31 @@ opentelemetry-agent:
       - logs
       - metrics
       - traces
+  # frontend logs (pino over OTLP) carry url.path and http.request.method but no route.
+  # Give them the same http.route / http.endpoint as the matching spans, so logs and
+  # traces can be grouped and joined by endpoint. Same patterns as transformStatements.
+  extraConfig:
+    processors:
+      transform/http_route_logs:
+        error_mode: ignore
+        log_statements:
+        - context: log
+          statements:
+          - set(attributes["http.route"], attributes["url.path"]) where resource.attributes["service.name"] == "frontend" and attributes["http.route"] == nil and attributes["url.path"] != nil
+          - replace_pattern(attributes["http.route"], "\\?.*$", "") where resource.attributes["service.name"] == "frontend"
+          - replace_pattern(attributes["http.route"], "(.)/$", "$$1") where resource.attributes["service.name"] == "frontend"
+          - replace_pattern(attributes["http.route"], "^/api/products/[A-Z0-9]{10}$", "/api/products/:productId") where resource.attributes["service.name"] == "frontend"
+          - replace_pattern(attributes["http.route"], "^/product/[A-Z0-9]{10}$", "/product/:productId") where resource.attributes["service.name"] == "frontend"
+          - replace_pattern(attributes["http.route"], "^/images/products/[^/]+$", "/images/products/:image") where resource.attributes["service.name"] == "frontend"
+          - replace_pattern(attributes["http.route"], "^/images/[^/]+\\.(png|jpg|svg|webp)$", "/images/:image") where resource.attributes["service.name"] == "frontend"
+          - replace_pattern(attributes["http.route"], "^/icons/[^/]+$", "/icons/:icon") where resource.attributes["service.name"] == "frontend"
+          - replace_pattern(attributes["http.route"], "^/_next/static/.*$", "/_next/static/*") where resource.attributes["service.name"] == "frontend"
+          - set(attributes["http.endpoint"], Concat([attributes["http.request.method"], attributes["http.route"]], " ")) where resource.attributes["service.name"] == "frontend" and attributes["http.route"] != nil and attributes["http.request.method"] != nil
+    service:
+      pipelines:
+        logs:
+          processors:
+          - transform/http_route_logs
   targetAllocator:
     enabled: false
   provider: on_prem
