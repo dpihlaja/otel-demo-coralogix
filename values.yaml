@@ -47,7 +47,23 @@ opentelemetry-agent:
       - 1s
       - 2s
       - 5s
-      transformStatements: []
+      # Runs on every span before spanmetrics and export.
+      # Envoy (frontend-proxy) names every server span "ingress" and only records the raw
+      # http.url (with sessionId query strings). Derive a low-cardinality http.route and
+      # rename the span "<METHOD> <route>" so APM and span metrics break down per endpoint.
+      transformStatements:
+      - set(attributes["http.route"], attributes["http.url"]) where resource.attributes["service.name"] == "frontend-proxy" and attributes["http.route"] == nil and attributes["http.url"] != nil
+      - replace_pattern(attributes["http.route"], "^[a-z]+://[^/]+", "") where resource.attributes["service.name"] == "frontend-proxy"
+      - replace_pattern(attributes["http.route"], "\\?.*$", "") where resource.attributes["service.name"] == "frontend-proxy"
+      - replace_pattern(attributes["http.route"], "(.)/$", "$$1") where resource.attributes["service.name"] == "frontend-proxy"
+      - replace_pattern(attributes["http.route"], "^/api/products/[A-Z0-9]{10}$", "/api/products/:productId") where resource.attributes["service.name"] == "frontend-proxy"
+      - replace_pattern(attributes["http.route"], "^/product/[A-Z0-9]{10}$", "/product/:productId") where resource.attributes["service.name"] == "frontend-proxy"
+      - replace_pattern(attributes["http.route"], "^/images/products/[^/]+$", "/images/products/:image") where resource.attributes["service.name"] == "frontend-proxy"
+      - replace_pattern(attributes["http.route"], "^/images/[^/]+\\.(png|jpg|svg|webp)$", "/images/:image") where resource.attributes["service.name"] == "frontend-proxy"
+      - replace_pattern(attributes["http.route"], "^/icons/[^/]+$", "/icons/:icon") where resource.attributes["service.name"] == "frontend-proxy"
+      - replace_pattern(attributes["http.route"], "^/_next/static/.*$", "/_next/static/*") where resource.attributes["service.name"] == "frontend-proxy"
+      - set(attributes["envoy.span_name"], name) where resource.attributes["service.name"] == "frontend-proxy" and name == "ingress"
+      - set(name, Concat([attributes["http.method"], attributes["http.route"]], " ")) where resource.attributes["service.name"] == "frontend-proxy" and name == "ingress" and attributes["http.method"] != nil and attributes["http.route"] != nil
     headSampling:
       enabled: true
       percentage: 10.0
