@@ -1,0 +1,23 @@
+# Values for the opentelemetry-demo chart (release: my-otel-demo).
+# Telemetry goes straight to the Coralogix agent DaemonSet (otel-integration chart),
+# which listens on hostPorts 4317/4318 on every node. The demo's own collector is
+# disabled because its DaemonSet claims the same hostPorts and blocks the agent.
+
+opentelemetry-collector:
+  enabled: false
+
+default:
+  envOverrides:
+    - name: OTEL_COLLECTOR_NAME
+      valueFrom:
+        fieldRef:
+          fieldPath: status.hostIP
+
+grafana:
+  enabled: false
+jaeger:
+  enabled: false
+opensearch:
+  enabled: false
+prometheus:
+  enabled: false

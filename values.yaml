@@ -1,0 +1,121 @@
+global:
+  domain: cx498.coralogix.com
+  clusterName: otel-demo-macbook
+  deploymentEnvironmentName: production
+opentelemetry-cluster-collector:
+  presets:
+    kubernetesEvents:
+      enabled: true
+    reduceResourceAttributes:
+      enabled: true
+    kubernetesResources:
+      enabled: true
+    fleetManagement:
+      enabled: true
+      supervisor:
+        enabled: false
+    resourceDetection:
+      enabled: true
+      deploymentEnvironmentName: production
+    clusterMetrics:
+      enabled: true
+    collectorMetrics:
+      enabled: true
+    kubernetesApiServerMetrics:
+      enabled: true
+      scrapeAll: true
+  provider: on_prem
+opentelemetry-agent:
+  presets:
+    hostEntityEvents:
+      enabled: true
+    fleetManagement:
+      enabled: true
+      supervisor:
+        enabled: false
+    spanMetrics:
+      enabled: true
+      histogramBuckets:
+      - 1ms
+      - 4ms
+      - 10ms
+      - 20ms
+      - 50ms
+      - 100ms
+      - 200ms
+      - 500ms
+      - 1s
+      - 2s
+      - 5s
+      transformStatements: []
+    headSampling:
+      enabled: true
+      percentage: 10.0
+    profilesCollection:
+      enabled: false
+    resourceDetection:
+      enabled: true
+      deploymentEnvironmentName: production
+    transactions:
+      enabled: true
+      waitDuration: '30'
+    logsCollection:
+      enabled: true
+      reduceLogAttributes:
+        enabled: true
+    kubeletMetrics:
+      enabled: true
+    collectorMetrics:
+      enabled: true
+    statsdReceiver:
+      enabled: true
+    hostMetrics:
+      enabled: true
+      process:
+        enabled: true
+    kubernetesExtraMetrics:
+      enabled: true
+      scrapeAll: true
+      perNode: true
+    reduceResourceAttributes:
+      enabled: true
+    coralogixExporter:
+      enabled: true
+      privateKey: ${env:CORALOGIX_PRIVATE_KEY}
+      pipelines:
+      - logs
+      - metrics
+      - traces
+  targetAllocator:
+    enabled: false
+  provider: on_prem
+opentelemetry-ebpf-profiler:
+  presets:
+    otlpExporter:
+      endpoint: ${env:K8S_NODE_IP}:4317
+      pipelines:
+      - profiles
+      tls:
+        insecure: true
+      enabled: true
+    resourceDetection:
+      enabled: true
+    fleetManagement:
+      enabled: true
+      supervisor:
+        enabled: false
+    ebpfProfiler:
+      samplesPerSecond: 20
+  enabled: false
+opentelemetry-ebpf-instrumentation:
+  enabled: true
+coralogix-operator:
+  enabled: true
+  serviceMonitor:
+    create: false
+  secret:
+    data:
+      apiKey: ""  # set from CORALOGIX_API_KEY by setup.sh
+  coralogixOperator:
+    domain: cx498.coralogix.com
+
