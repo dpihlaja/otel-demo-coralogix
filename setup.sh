@@ -37,7 +37,19 @@ helm upgrade --install otel-coralogix-integration coralogix/otel-integration \
   --set coralogix-operator.secret.data.apiKey="$CORALOGIX_API_KEY" \
   --wait --timeout 10m
 
+# Coralogix RUM: public key as a secret, frontend image built from source inside minikube.
+if [[ -n "${CORALOGIX_RUM_KEY:-}" ]]; then
+  kubectl create secret generic coralogix-rum -n default \
+    --from-literal=PUBLIC_KEY="$CORALOGIX_RUM_KEY" \
+    --dry-run=client -o yaml | kubectl apply -f -
+fi
+RUM_TAG=$(rum/build.sh --print-tag)
+if ! minikube image ls | grep -q "otel-demo-frontend-rum:${RUM_TAG}"; then
+  rum/build.sh
+fi
+
 helm upgrade --install my-otel-demo open-telemetry/opentelemetry-demo \
-  --version 0.42.4 -f demo-values.yaml --timeout 15m
+  --version 0.42.4 -f demo-values.yaml \
+  --set components.frontend.imageOverride.tag="$RUM_TAG" --timeout 15m
 
 kubectl get pods -A

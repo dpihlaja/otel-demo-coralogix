@@ -1,0 +1,196 @@
+diff --git a/src/frontend/Dockerfile b/src/frontend/Dockerfile
+index 3235152..155ca58 100644
+--- a/src/frontend/Dockerfile
++++ b/src/frontend/Dockerfile
+@@ -9,6 +9,8 @@ COPY ./src/frontend/package.json package.json
+ COPY ./src/frontend/package-lock.json package-lock.json
+ 
+ RUN npm ci
++# Coralogix RUM browser SDK (client-only, bundled by Next; not needed in the runtime node_modules).
++RUN npm install --no-save @coralogix/browser@4.2.0
+ 
+ COPY ./src/frontend/components/ components/
+ COPY ./src/frontend/gateways/ gateways/
+@@ -29,6 +31,21 @@ COPY ./src/frontend/tsconfig.json tsconfig.json
+ 
+ RUN npm run build
+ 
++# Upload browser source maps to Coralogix RUM, then delete them so the image never serves .map
++# files. The key comes in as a BuildKit secret (id=cx_sourcemap_key), so it never shows up in
++# build output or image history; without it the upload is skipped. RUM_VERSION must match the
++# SDK's runtime version, which the final stage bakes in as CORALOGIX_RUM_VERSION.
++ARG RUM_VERSION=3.1.0-cx
++ARG CORALOGIX_RUM_APPLICATION=Frontend
++ARG CORALOGIX_RUM_DOMAIN=US2
++RUN --mount=type=secret,id=cx_sourcemap_key \
++    if [ -s /run/secrets/cx_sourcemap_key ]; then \
++      npx -y @coralogix/rum-cli upload-source-maps \
++        -k "$(cat /run/secrets/cx_sourcemap_key)" -a "$CORALOGIX_RUM_APPLICATION" -v "$RUM_VERSION" \
++        -e "$CORALOGIX_RUM_DOMAIN" -f .next/static --override; \
++    else echo "No cx_sourcemap_key secret: skipping source map upload"; fi \
++ && find .next/static -name '*.map' -delete
++
+ # -----------------------------------------------------------------------------
+ 
+ FROM docker.io/library/node:25.9.0-slim@sha256:81db02c4b671288a03915da9534dbd54f96d0e7c24d80ccc54f5b36b2e684370 AS deps
+@@ -55,6 +72,9 @@ COPY ./src/frontend/public/ public/
+ 
+ COPY ./src/frontend/utils/telemetry/Instrumentation.js Instrumentation.js
+ 
++ARG RUM_VERSION=3.1.0-cx
++ENV CORALOGIX_RUM_VERSION=${RUM_VERSION}
++
+ ARG FRONTEND_PORT=8080
+ EXPOSE ${FRONTEND_PORT}
+ 
+diff --git a/src/frontend/next.config.js b/src/frontend/next.config.js
+index 6d4ca79..f351af8 100755
+--- a/src/frontend/next.config.js
++++ b/src/frontend/next.config.js
+@@ -28,6 +28,8 @@ const {
+ 
+ const nextConfig = {
+   reactStrictMode: true,
++  // Emitted so they can be uploaded to Coralogix RUM; the Dockerfile deletes them after upload.
++  productionBrowserSourceMaps: true,
+   output: 'standalone',
+   compiler: {
+     styledComponents: true,
+diff --git a/src/frontend/pages/_app.tsx b/src/frontend/pages/_app.tsx
+index 67ee8b1..33ea22f 100755
+--- a/src/frontend/pages/_app.tsx
++++ b/src/frontend/pages/_app.tsx
+@@ -9,6 +9,7 @@ import CartProvider from '../providers/Cart.provider';
+ import { ThemeProvider } from 'styled-components';
+ import Theme from '../styles/Theme';
+ import FrontendTracer from '../utils/telemetry/FrontendTracer';
++import CoralogixRumInit, { isCoralogixRumEnabled } from '../utils/telemetry/CoralogixRum';
+ import SessionGateway from '../gateways/Session.gateway';
+ import { OpenFeatureProvider, OpenFeature } from '@openfeature/react-sdk';
+ import { FlagdWebProvider } from '@openfeature/flagd-web-provider';
+@@ -20,12 +21,23 @@ declare global {
+       NEXT_PUBLIC_OTEL_SERVICE_NAME?: string;
+       NEXT_PUBLIC_OTEL_EXPORTER_OTLP_TRACES_ENDPOINT?: string;
+       IS_SYNTHETIC_REQUEST?: string;
++      NEXT_PUBLIC_CORALOGIX_RUM_PUBLIC_KEY?: string;
++      NEXT_PUBLIC_CORALOGIX_RUM_APPLICATION?: string;
++      NEXT_PUBLIC_CORALOGIX_RUM_DOMAIN?: string;
++      NEXT_PUBLIC_CORALOGIX_RUM_ENVIRONMENT?: string;
++      NEXT_PUBLIC_CORALOGIX_RUM_VERSION?: string;
+     };
+   }
+ }
+ 
+ if (typeof window !== 'undefined') {
+-  FrontendTracer();
++  // Coralogix RUM owns the browser's traceparent header when enabled, so the demo's own
++  // OTel web tracer is skipped to avoid two tracers instrumenting fetch.
++  if (isCoralogixRumEnabled()) {
++    CoralogixRumInit();
++  } else {
++    FrontendTracer();
++  }
+   if (window.location) {
+     const session = SessionGateway.getSession();
+ 
+diff --git a/src/frontend/pages/_document.tsx b/src/frontend/pages/_document.tsx
+index 8a68bc0..32b7c30 100644
+--- a/src/frontend/pages/_document.tsx
++++ b/src/frontend/pages/_document.tsx
+@@ -6,6 +6,13 @@ import { ServerStyleSheet } from 'styled-components';
+ import {context, propagation} from "@opentelemetry/api";
+ 
+ const { ENV_PLATFORM, WEB_OTEL_SERVICE_NAME, PUBLIC_OTEL_EXPORTER_OTLP_TRACES_ENDPOINT, OTEL_COLLECTOR_HOST} = process.env;
++const {
++  CORALOGIX_RUM_PUBLIC_KEY = '',
++  CORALOGIX_RUM_APPLICATION = 'Frontend',
++  CORALOGIX_RUM_DOMAIN = 'US2',
++  CORALOGIX_RUM_ENVIRONMENT = '',
++  CORALOGIX_RUM_VERSION = '',
++} = process.env;
+ 
+ export default class MyDocument extends Document<{ envString: string }> {
+   static async getInitialProps(ctx: DocumentContext) {
+@@ -32,6 +39,11 @@ export default class MyDocument extends Document<{ envString: string }> {
+           NEXT_PUBLIC_OTEL_SERVICE_NAME: '${WEB_OTEL_SERVICE_NAME}',
+           NEXT_PUBLIC_OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: '${otlpTracesEndpoint}',
+           IS_SYNTHETIC_REQUEST: '${isSyntheticRequest}',
++          NEXT_PUBLIC_CORALOGIX_RUM_PUBLIC_KEY: '${CORALOGIX_RUM_PUBLIC_KEY}',
++          NEXT_PUBLIC_CORALOGIX_RUM_APPLICATION: '${CORALOGIX_RUM_APPLICATION}',
++          NEXT_PUBLIC_CORALOGIX_RUM_DOMAIN: '${CORALOGIX_RUM_DOMAIN}',
++          NEXT_PUBLIC_CORALOGIX_RUM_ENVIRONMENT: '${CORALOGIX_RUM_ENVIRONMENT}',
++          NEXT_PUBLIC_CORALOGIX_RUM_VERSION: '${CORALOGIX_RUM_VERSION}',
+         };`;
+       return {
+         ...initialProps,
+diff --git a/src/frontend/utils/telemetry/CoralogixRum.ts b/src/frontend/utils/telemetry/CoralogixRum.ts
+new file mode 100644
+index 0000000..46f0377
+--- /dev/null
++++ b/src/frontend/utils/telemetry/CoralogixRum.ts
+@@ -0,0 +1,65 @@
++// Coralogix Real User Monitoring (RUM) for the demo shop.
++// Configured at runtime through window.ENV (see pages/_document.tsx); disabled when no key is set.
++
++import SessionGateway from '../../gateways/Session.gateway';
++
++const {
++  NEXT_PUBLIC_CORALOGIX_RUM_PUBLIC_KEY = '',
++  NEXT_PUBLIC_CORALOGIX_RUM_APPLICATION = 'Frontend',
++  NEXT_PUBLIC_CORALOGIX_RUM_DOMAIN = 'US2',
++  NEXT_PUBLIC_CORALOGIX_RUM_ENVIRONMENT = '',
++  NEXT_PUBLIC_CORALOGIX_RUM_VERSION = '',
++  IS_SYNTHETIC_REQUEST = '',
++} = typeof window !== 'undefined' ? window.ENV : {};
++
++export const isCoralogixRumEnabled = () =>
++  typeof window !== 'undefined' && NEXT_PUBLIC_CORALOGIX_RUM_PUBLIC_KEY !== '';
++
++// Same route templates the collector uses for http.route, in RUM's {param} style.
++const blueprint = (url: string) =>
++  url
++    .replace(/\/api\/products\/[A-Z0-9]{10}(?=[/?#]|$)/, '/api/products/{productId}')
++    .replace(/\/product\/[A-Z0-9]{10}(?=[/?#]|$)/, '/product/{productId}')
++    .replace(/\/images\/products\/[^/?#]+/, '/images/products/{image}');
++
++const CoralogixRumInit = async () => {
++  if (!isCoralogixRumEnabled()) return;
++
++  const { CoralogixRum } = await import('@coralogix/browser');
++  if (CoralogixRum.isInited) return;
++
++  const session = SessionGateway.getSession();
++
++  CoralogixRum.init({
++    public_key: NEXT_PUBLIC_CORALOGIX_RUM_PUBLIC_KEY,
++    application: NEXT_PUBLIC_CORALOGIX_RUM_APPLICATION,
++    // Must match the version the source maps were uploaded with (set at image build time).
++    version: NEXT_PUBLIC_CORALOGIX_RUM_VERSION,
++    environment: NEXT_PUBLIC_CORALOGIX_RUM_ENVIRONMENT || undefined,
++    // Cast: the key comes from runtime config; the SDK validates it.
++    coralogixDomain: NEXT_PUBLIC_CORALOGIX_RUM_DOMAIN as 'US2',
++    // Adds W3C traceparent to same-origin fetch/XHR, linking RUM sessions to backend traces.
++    traceParentInHeader: { enabled: true },
++    urlBlueprinters: {
++      pageUrlBlueprinters: [blueprint],
++      networkUrlBlueprinters: [blueprint],
++    },
++    user_context: {
++      user_id: session.userId,
++      user_name: `shopper-${session.userId.slice(0, 8)}`,
++    },
++    labels: {
++      // The load generator's browser traffic is marked synthetic; keep it, but make it filterable.
++      synthetic: IS_SYNTHETIC_REQUEST === 'true' ? 'true' : 'false',
++      currency: session.currencyCode,
++    },
++    sessionRecordingConfig: {
++      enable: true,
++      autoStartSessionRecording: true,
++      recordConsoleEvents: true,
++      maskAllInputs: true,
++    },
++  });
++};
++
++export default CoralogixRumInit;

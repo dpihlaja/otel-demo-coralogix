@@ -13,6 +13,31 @@ default:
         fieldRef:
           fieldPath: status.hostIP
 
+components:
+  frontend:
+    # Demo frontend rebuilt with the Coralogix RUM browser SDK (rum/build.sh).
+    # The tag is set by setup.sh (--set components.frontend.imageOverride.tag=...).
+    imageOverride:
+      repository: otel-demo-frontend-rum
+    envOverrides:
+      # Read by pages/_document.tsx and passed to the browser via window.ENV.
+      - name: CORALOGIX_RUM_PUBLIC_KEY
+        valueFrom:
+          secretKeyRef:
+            name: coralogix-rum
+            key: PUBLIC_KEY
+            optional: true
+      - name: CORALOGIX_RUM_APPLICATION
+        value: Frontend
+      - name: CORALOGIX_RUM_DOMAIN
+        value: US2
+      - name: CORALOGIX_RUM_ENVIRONMENT
+        value: production
+      # Upstream default is http://localhost:8080/..., which breaks for browsers on other
+      # machines (their own localhost). Relative works from any host.
+      - name: PUBLIC_OTEL_EXPORTER_OTLP_TRACES_ENDPOINT
+        value: /otlp-http/v1/traces
+
 grafana:
   enabled: false
 jaeger:

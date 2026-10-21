@@ -12,6 +12,7 @@ sending logs, metrics and traces to Coralogix (`cx498.coralogix.com`) through Co
 | `port-forward.sh` | Forwards `localhost:8080` to the demo's frontend proxy (keeps reconnecting) |
 | `values.yaml` | Values for `coralogix/otel-integration` (agent, cluster collector, operator) |
 | `demo-values.yaml` | Values for `open-telemetry/opentelemetry-demo` |
+| `rum/` | Frontend rebuilt with Coralogix RUM: patch on the demo's `src/frontend` + `build.sh` |
 | `.env` | Coralogix keys (gitignored, create it yourself) |
 
 ## Setup
@@ -19,6 +20,8 @@ sending logs, metrics and traces to Coralogix (`cx498.coralogix.com`) through Co
 ```bash
 cat > .env <<'EOF'
 CORALOGIX_PRIVATE_KEY=<send-your-data key>
+CORALOGIX_RUM_KEY=<RUM public key>             # optional: Coralogix RUM in the shop
+CORALOGIX_SOURCEMAP_KEY=<source maps API key>  # optional: upload browser source maps
 EOF
 ./setup.sh
 ./port-forward.sh   # shop at http://localhost:8080, also /feature and /loadgen
@@ -26,6 +29,25 @@ ADDRESS=0.0.0.0 ./port-forward.sh   # same, but reachable from other machines on
 ```
 
 Tear down with `minikube delete`.
+
+## Real User Monitoring (RUM)
+
+`setup.sh` builds the demo frontend from source (tag `3.1.0`) with the
+[`@coralogix/browser`](https://www.npmjs.com/package/@coralogix/browser) SDK, inside the minikube
+VM, and points the chart's `frontend` at that image. Everything else uses upstream images.
+
+- `rum/frontend-coralogix-rum.patch` adds `utils/telemetry/CoralogixRum.ts`, wires it into
+  `_app.tsx`, and passes its settings through `window.ENV` in `_document.tsx`. Key,
+  application, domain and environment are runtime env vars (`demo-values.yaml`); the public key
+  comes from the `coralogix-rum` secret.
+- When RUM is on, it owns the browser's `traceparent` header (`traceParentInHeader`), so RUM
+  sessions link to backend traces; the demo's own browser tracer (`frontend-web`) is skipped.
+- Session replay is on, with all inputs masked. URLs are blueprinted to the same
+  templates as `http.route` (`/product/{productId}`).
+- Source maps are uploaded during the build with `rum-cli`, then deleted from the image. The key
+  is a BuildKit secret, so it never appears in build output or image history.
+- The version is `3.1.0-cx.<patch hash>`, the same for the SDK and the source maps; changing the
+  patch produces a new image and a new upload. Rebuild by hand with `rum/build.sh`.
 
 ## How telemetry flows
 
