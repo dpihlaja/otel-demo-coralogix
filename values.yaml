@@ -88,7 +88,7 @@ opentelemetry-agent:
       enabled: true
       percentage: 10.0
     profilesCollection:
-      enabled: false
+      enabled: true
     resourceDetection:
       enabled: true
       deploymentEnvironmentName: production
