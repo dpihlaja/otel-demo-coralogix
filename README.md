@@ -22,6 +22,7 @@ CORALOGIX_PRIVATE_KEY=<send-your-data key>
 EOF
 ./setup.sh
 ./port-forward.sh   # shop at http://localhost:8080, also /feature and /loadgen
+ADDRESS=0.0.0.0 ./port-forward.sh   # same, but reachable from other machines on the LAN
 ```
 
 Tear down with `minikube delete`.
