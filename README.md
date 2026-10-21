@@ -1,6 +1,6 @@
 # otel-demo
 
-The [OpenTelemetry demo](https://opentelemetry.io/docs/demo/) running on minikube (docker driver),
+The [OpenTelemetry demo](https://opentelemetry.io/docs/demo/) running on minikube (vfkit VM driver),
 sending logs, metrics and traces to Coralogix (`cx498.coralogix.com`) through Coralogix's
 `otel-integration` Helm chart.
 
@@ -40,12 +40,19 @@ Services find the agent through `OTEL_COLLECTOR_NAME`, which is set to the pod's
 
 ## Gotchas
 
-- **minikube memory.** minikube's default 4 GiB container is far too small. The kubelet still
-  reports the whole Docker VM's memory, so pods get scheduled anyway and the node thrashes
-  (API server crashes, `kubectl` hangs). `setup.sh` uses `--memory=10g --cpus=6`; Docker
-  Desktop needs at least ~12 GiB. Memory can't be changed on an existing cluster, so run
-  `minikube delete` first.
-- **`docker: command not found`.** Docker Desktop's CLI lives in `~/.docker/bin`, which
-  `~/.zprofile` adds to PATH. Open a new terminal or run `exec zsh -l`.
+- **Driver: vfkit, not docker.** The eBPF profiler needs a real node. On minikube's docker
+  driver the node is a container, and the profiler dies on startup ("system analysis request
+  was not handled") because of the nested PID namespace. `setup.sh` defaults to
+  `--driver=vfkit` (`brew install vfkit`); `MINIKUBE_DRIVER=docker ./setup.sh` still works for
+  everything except profiling. On a 16 GB Mac, quit Docker Desktop first: its VM and a 10 GB
+  minikube VM don't fit together.
+- **minikube memory.** minikube's 4 GiB default is far too small; on the docker driver the
+  kubelet even reports the whole Docker VM's memory, so the node thrashes (API server crashes,
+  `kubectl` hangs). `setup.sh` uses `--memory=10g --cpus=6`. Memory can't be changed on an
+  existing cluster, so run `minikube delete` first.
+- **eBPF auto-instrumentation is off.** Every demo service already has OTel SDK
+  instrumentation; eBPF only added duplicate spans and `IP:port` service-map nodes.
+- **APM looks empty?** Check the APM environment picker: this cluster reports
+  `deployment.environment.name=production`.
 - **First start is slow.** Every image gets pulled fresh after `minikube delete`. Pods waiting
   on `flagd`/`kafka` sit in `Init`/`PodInitializing` until those are up.

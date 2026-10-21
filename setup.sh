@@ -10,13 +10,16 @@ export PATH="$PATH:$HOME/.docker/bin"
 : "${CORALOGIX_PRIVATE_KEY:?set CORALOGIX_PRIVATE_KEY (Send-Your-Data API key) in .env}"
 : "${CORALOGIX_API_KEY:=$CORALOGIX_PRIVATE_KEY}"
 
-# minikube defaults to a 4 GiB container, far less than the demo + Coralogix need.
-# Docker Desktop's VM has ~12 GiB; leave ~2 GiB for Docker itself.
+# vfkit runs the node as a real VM, which the eBPF profiler needs (on the docker driver the
+# node is a container and the profiler can't start). Quit Docker Desktop first on a 16 GB Mac.
+# MINIKUBE_DRIVER=docker still works for everything except profiling.
+MINIKUBE_DRIVER="${MINIKUBE_DRIVER:-vfkit}"
+# minikube's 4 GiB default is far too small for the demo + Coralogix.
 MINIKUBE_MEMORY="${MINIKUBE_MEMORY:-10g}"
 MINIKUBE_CPUS="${MINIKUBE_CPUS:-6}"
 
 if ! minikube status >/dev/null 2>&1; then
-  minikube start --driver=docker --memory="$MINIKUBE_MEMORY" --cpus="$MINIKUBE_CPUS"
+  minikube start --driver="$MINIKUBE_DRIVER" --memory="$MINIKUBE_MEMORY" --cpus="$MINIKUBE_CPUS"
 fi
 
 helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm-charts >/dev/null 2>&1 || true

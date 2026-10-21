@@ -167,9 +167,13 @@ opentelemetry-ebpf-profiler:
         enabled: false
     ebpfProfiler:
       samplesPerSecond: 20
-  enabled: false
-opentelemetry-ebpf-instrumentation:
+  # Needs a real (VM) node: on minikube's docker driver the profiler fails its kernel
+  # self-check because the node is itself a container (nested PID namespace).
   enabled: true
+# Every demo service already has OTel SDK instrumentation; eBPF auto-instrumentation only
+# added duplicate spans, IP:port service-map nodes and orphaned-span warnings.
+opentelemetry-ebpf-instrumentation:
+  enabled: false
 coralogix-operator:
   enabled: true
   serviceMonitor:
