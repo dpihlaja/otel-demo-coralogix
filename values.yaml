@@ -167,9 +167,11 @@ opentelemetry-ebpf-profiler:
         enabled: false
     ebpfProfiler:
       samplesPerSecond: 20
-  # Needs a real (VM) node: on minikube's docker driver the profiler fails its kernel
-  # self-check because the node is itself a container (nested PID namespace).
-  enabled: true
+  # Off: no local minikube option supports it. Docker driver: the node is a container and the
+  # profiler's kernel self-check fails (nested PID namespace). vfkit driver: the minikube ISO
+  # kernel has no kprobes/ftrace ("load program: invalid argument"). Needs a node with a
+  # standard distro kernel (e.g. k3s on an Ubuntu VM, or managed Kubernetes).
+  enabled: false
 # Every demo service already has OTel SDK instrumentation; eBPF auto-instrumentation only
 # added duplicate spans, IP:port service-map nodes and orphaned-span warnings.
 opentelemetry-ebpf-instrumentation:

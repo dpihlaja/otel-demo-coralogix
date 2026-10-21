@@ -40,12 +40,14 @@ Services find the agent through `OTEL_COLLECTOR_NAME`, which is set to the pod's
 
 ## Gotchas
 
-- **Driver: vfkit, not docker.** The eBPF profiler needs a real node. On minikube's docker
-  driver the node is a container, and the profiler dies on startup ("system analysis request
-  was not handled") because of the nested PID namespace. `setup.sh` defaults to
-  `--driver=vfkit` (`brew install vfkit`); `MINIKUBE_DRIVER=docker ./setup.sh` still works for
-  everything except profiling. On a 16 GB Mac, quit Docker Desktop first: its VM and a 10 GB
-  minikube VM don't fit together.
+- **Driver: vfkit.** `setup.sh` defaults to `--driver=vfkit` (`brew install vfkit`). On a
+  16 GB Mac, quit Docker Desktop first: its VM and a 10 GB minikube VM don't fit together.
+  `MINIKUBE_DRIVER=docker ./setup.sh` also works.
+- **No eBPF profiling locally.** Neither driver can run the Coralogix eBPF profiler. Docker
+  driver: the node is a container, and the profiler's kernel self-check fails on the nested
+  PID namespace ("system analysis request was not handled"). vfkit driver: the minikube ISO
+  kernel is built without kprobes/ftrace ("load program: invalid argument"). It needs a node
+  with a standard distro kernel (k3s on an Ubuntu VM, or managed Kubernetes).
 - **minikube memory.** minikube's 4 GiB default is far too small; on the docker driver the
   kubelet even reports the whole Docker VM's memory, so the node thrashes (API server crashes,
   `kubectl` hangs). `setup.sh` uses `--memory=10g --cpus=6`. Memory can't be changed on an
