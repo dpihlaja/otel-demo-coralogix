@@ -21,9 +21,10 @@ opentelemetry-cluster-collector:
       enabled: true
     collectorMetrics:
       enabled: true
+    # Off: the API server's /metrics (apiserver_*, etcd_*, workqueue_*, ...) was ~39k series,
+    # about two thirds of everything, for control-plane internals we don't monitor.
     kubernetesApiServerMetrics:
-      enabled: true
-      scrapeAll: true
+      enabled: false
   # Coralogix appends "_total" to monotonic counters on ingest, so Prometheus-scraped counters
   # (already named "..._total") land as "..._total_total". The chart's transform/prometheus
   # strips the suffix only for the collector's own metrics; do the same for everything else.
@@ -73,6 +74,14 @@ opentelemetry-agent:
       # ("/api/products/:productId") and http.endpoint ("GET /api/products/:productId").
       # The route patterns are repeated for logs in extraConfig below; keep them in sync.
       transformStatements:
+      # 0. Fix spans that skew RED metrics.
+      #    Next.js wraps each request in its own SERVER span (BaseServer.handleRequest) under the
+      #    instrumentation-http SERVER span, so every frontend request counted twice. Demote it.
+      - set(kind, SPAN_KIND_INTERNAL) where resource.attributes["service.name"] == "frontend" and attributes["next.span_type"] == "BaseServer.handleRequest"
+      #    flagd's EventStream is a long-lived stream the server closes every 10 minutes with
+      #    DEADLINE_EXCEEDED by design. Not an error; it was the only "error" in the environment.
+      - set(attributes["flagd.stream.recycled"], true) where IsMatch(name, "EventStream$") and status.code == STATUS_CODE_ERROR
+      - set(status.code, STATUS_CODE_UNSET) where IsMatch(name, "EventStream$") and status.code == STATUS_CODE_ERROR
       # 1. Seed http.route from whatever each service records.
       #    frontend-proxy (Envoy): only the full http.url.
       - set(attributes["http.route"], attributes["http.url"]) where resource.attributes["service.name"] == "frontend-proxy" and attributes["http.route"] == nil and attributes["http.url"] != nil
@@ -101,6 +110,8 @@ opentelemetry-agent:
       - set(attributes["envoy.span_name"], name) where resource.attributes["service.name"] == "frontend-proxy" and name == "ingress"
       - set(name, attributes["http.endpoint"]) where resource.attributes["service.name"] == "frontend-proxy" and name == "ingress" and attributes["http.endpoint"] != nil
       - set(name, attributes["http.endpoint"]) where resource.attributes["service.name"] == "frontend" and kind == SPAN_KIND_SERVER and IsMatch(name, "^[A-Z]+$") and attributes["http.endpoint"] != nil
+      # 5. Only the real server span carries http.endpoint, so per-endpoint metrics count once.
+      - delete_key(attributes, "http.endpoint") where resource.attributes["service.name"] == "frontend" and attributes["next.span_type"] == "BaseServer.handleRequest"
     headSampling:
       enabled: true
       percentage: 10.0
@@ -124,8 +135,10 @@ opentelemetry-agent:
       enabled: true
     hostMetrics:
       enabled: true
+      # Off: ~3.5k per-PID series with no pod mapping (container_* / k8s_pod_* cover that), and
+      # process.command_line (full Java classpaths) broke Coralogix's max label length.
       process:
-        enabled: true
+        enabled: false
     kubernetesExtraMetrics:
       enabled: true
       scrapeAll: true
@@ -139,11 +152,26 @@ opentelemetry-agent:
       - logs
       - metrics
       - traces
-  # frontend logs (pino over OTLP) carry url.path and http.request.method but no route.
-  # Give them the same http.route / http.endpoint as the matching spans, so logs and
-  # traces can be grouped and joined by endpoint. Same patterns as transformStatements.
   extraConfig:
     processors:
+      # High-volume lines with no monitoring value (rates measured 2026-10-22, per hour):
+      # - coredns query log (~107k, half of all logs): the load generator's headless Chrome
+      #   resolving external hosts through every cluster search domain. coredns errors are kept.
+      # - "orphaned spans found" (~7k) and "Multiple root spans found in single trace" (~3k) from
+      #   the agent itself: expected, because RUM root spans go straight to Coralogix and never
+      #   pass through this collector.
+      # - storage-provisioner "v1 Endpoints is deprecated" (~3.6k).
+      # - image-provider (nginx) 2xx/3xx access lines: frontend-proxy already logs every one of
+      #   these requests with timing and trace IDs. 4xx/5xx and nginx error lines are kept.
+      filter/noise_logs:
+        error_mode: ignore
+        logs:
+          log_record:
+          # (OTTL strings are Go-quoted: regex backslashes are doubled, \" is a literal quote.)
+          - 'resource.attributes["k8s.container.name"] == "coredns" and IsMatch(body, "^\\[INFO\\] \\S+ - \\d+ \"")'
+          - 'resource.attributes["k8s.namespace.name"] == "coralogix" and IsMatch(body, "\"msg\":\"(orphaned spans found|Multiple root spans found in single trace)\"")'
+          - 'resource.attributes["k8s.container.name"] == "storage-provisioner" and IsMatch(body, "warnings\\.go:\\d+\\] .* is deprecated")'
+          - 'resource.attributes["k8s.container.name"] == "image-provider" and IsMatch(body, "\" [23]\\d\\d \\d+ \"")'
       # These demo services already send their logs over OTLP (parsed, with service.name and
       # trace/span IDs); filelog ships the same lines again as raw stdout text. Drop the
       # filelog copy: it's the one without service.name. Services that only log to stdout
@@ -154,6 +182,21 @@ opentelemetry-agent:
         logs:
           log_record:
           - resource.attributes["service.name"] == nil and resource.attributes["k8s.namespace.name"] == "default" and IsMatch(resource.attributes["k8s.container.name"], "^(accounting|ad|cart|email|fraud-detection|frontend|kafka|payment|quote|recommendation|shipping)$")
+      # The agent service (Python) logs to stdout only, in logging's default "LEVEL:logger:msg"
+      # format, so it arrived without severity. Take the level from the prefix.
+      transform/stdout_severity:
+        error_mode: ignore
+        log_statements:
+        - context: log
+          statements:
+          - set(severity_number, SEVERITY_NUMBER_DEBUG) where severity_number == SEVERITY_NUMBER_UNSPECIFIED and resource.attributes["k8s.container.name"] == "agent" and IsMatch(body, "^DEBUG:")
+          - set(severity_number, SEVERITY_NUMBER_INFO) where severity_number == SEVERITY_NUMBER_UNSPECIFIED and resource.attributes["k8s.container.name"] == "agent" and IsMatch(body, "^INFO:")
+          - set(severity_number, SEVERITY_NUMBER_WARN) where severity_number == SEVERITY_NUMBER_UNSPECIFIED and resource.attributes["k8s.container.name"] == "agent" and IsMatch(body, "^WARNING:")
+          - set(severity_number, SEVERITY_NUMBER_ERROR) where severity_number == SEVERITY_NUMBER_UNSPECIFIED and resource.attributes["k8s.container.name"] == "agent" and IsMatch(body, "^ERROR:")
+          - set(severity_number, SEVERITY_NUMBER_FATAL) where severity_number == SEVERITY_NUMBER_UNSPECIFIED and resource.attributes["k8s.container.name"] == "agent" and IsMatch(body, "^CRITICAL:")
+      # frontend logs (pino over OTLP) carry url.path and http.request.method but no route.
+      # Give them the same http.route / http.endpoint as the matching spans, so logs and
+      # traces can be grouped and joined by endpoint. Same patterns as transformStatements.
       transform/http_route_logs:
         error_mode: ignore
         log_statements:
@@ -177,15 +220,29 @@ opentelemetry-agent:
         - context: metric
           statements:
           - replace_pattern(metric.name, "_total$", "") where metric.type == METRIC_DATA_TYPE_SUM and metric.is_monotonic == true and resource.attributes["service.name"] != "opentelemetry-collector"
+      # Coralogix appends the unit to the metric name, and OTel annotation units ("{transaction}")
+      # turn into names like demo_payment_transactions__transaction__total. Clear them on
+      # application metrics (anything with a service.name) so names stay readable:
+      # demo_payment_transactions_total. Infra metrics (kubelet, cluster, host) are left as
+      # Coralogix's built-in Kubernetes views expect them.
+      transform/app_metric_units:
+        error_mode: ignore
+        metric_statements:
+        - context: metric
+          statements:
+          - set(metric.unit, "") where IsMatch(metric.unit, "^\\{.*\\}$") and resource.attributes["service.name"] != nil and resource.attributes["service.name"] != "opentelemetry-collector"
     service:
       pipelines:
         logs:
           processors:
           - filter/duplicate_stdout_logs
+          - filter/noise_logs
+          - transform/stdout_severity
           - transform/http_route_logs
         metrics:
           processors:
           - transform/strip_total
+          - transform/app_metric_units
   targetAllocator:
     enabled: false
   provider: on_prem

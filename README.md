@@ -65,7 +65,8 @@ Services find the agent through `OTEL_COLLECTOR_NAME`, which is set to the pod's
 
 - **Driver: vfkit.** `setup.sh` defaults to `--driver=vfkit` (`brew install vfkit`). On a
   16 GB Mac, quit Docker Desktop first: its VM and a 10 GB minikube VM don't fit together.
-  `MINIKUBE_DRIVER=docker ./setup.sh` also works.
+  `MINIKUBE_DRIVER=docker ./setup.sh` also works. To resume a stopped cluster, pass the driver
+  again (`minikube start --driver=vfkit`): plain `minikube start` picks docker and refuses.
 - **No eBPF profiling locally.** Neither driver can run the Coralogix eBPF profiler. Docker
   driver: the node is a container, and the profiler's kernel self-check fails on the nested
   PID namespace ("system analysis request was not handled"). vfkit driver: the minikube ISO
