@@ -24,6 +24,23 @@ opentelemetry-cluster-collector:
     kubernetesApiServerMetrics:
       enabled: true
       scrapeAll: true
+  # Coralogix appends "_total" to monotonic counters on ingest, so Prometheus-scraped counters
+  # (already named "..._total") land as "..._total_total". The chart's transform/prometheus
+  # strips the suffix only for the collector's own metrics; do the same for everything else.
+  # Same processor on the agent below.
+  extraConfig:
+    processors:
+      transform/strip_total:
+        error_mode: ignore
+        metric_statements:
+        - context: metric
+          statements:
+          - replace_pattern(metric.name, "_total$", "") where metric.type == METRIC_DATA_TYPE_SUM and metric.is_monotonic == true and resource.attributes["service.name"] != "opentelemetry-collector"
+    service:
+      pipelines:
+        metrics:
+          processors:
+          - transform/strip_total
   provider: on_prem
 opentelemetry-agent:
   presets:
@@ -127,6 +144,16 @@ opentelemetry-agent:
   # traces can be grouped and joined by endpoint. Same patterns as transformStatements.
   extraConfig:
     processors:
+      # These demo services already send their logs over OTLP (parsed, with service.name and
+      # trace/span IDs); filelog ships the same lines again as raw stdout text. Drop the
+      # filelog copy: it's the one without service.name. Services that only log to stdout
+      # (frontend-proxy, image-provider, agent, ...) aren't listed, so they're kept.
+      # (A filelog exclude list can't be set here: the preset's empty list wins the merge.)
+      filter/duplicate_stdout_logs:
+        error_mode: ignore
+        logs:
+          log_record:
+          - resource.attributes["service.name"] == nil and resource.attributes["k8s.namespace.name"] == "default" and IsMatch(resource.attributes["k8s.container.name"], "^(accounting|ad|cart|email|fraud-detection|frontend|kafka|payment|quote|recommendation|shipping)$")
       transform/http_route_logs:
         error_mode: ignore
         log_statements:
@@ -142,11 +169,23 @@ opentelemetry-agent:
           - replace_pattern(attributes["http.route"], "^/icons/[^/]+$", "/icons/:icon") where resource.attributes["service.name"] == "frontend"
           - replace_pattern(attributes["http.route"], "^/_next/static/.*$", "/_next/static/*") where resource.attributes["service.name"] == "frontend"
           - set(attributes["http.endpoint"], Concat([attributes["http.request.method"], attributes["http.route"]], " ")) where resource.attributes["service.name"] == "frontend" and attributes["http.route"] != nil and attributes["http.request.method"] != nil
+      # See the cluster collector's transform/strip_total: avoids "..._total_total" names
+      # (cAdvisor, app Prometheus counters), which APM's pod CPU/OOM panels can't find.
+      transform/strip_total:
+        error_mode: ignore
+        metric_statements:
+        - context: metric
+          statements:
+          - replace_pattern(metric.name, "_total$", "") where metric.type == METRIC_DATA_TYPE_SUM and metric.is_monotonic == true and resource.attributes["service.name"] != "opentelemetry-collector"
     service:
       pipelines:
         logs:
           processors:
+          - filter/duplicate_stdout_logs
           - transform/http_route_logs
+        metrics:
+          processors:
+          - transform/strip_total
   targetAllocator:
     enabled: false
   provider: on_prem

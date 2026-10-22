@@ -52,4 +52,7 @@ helm upgrade --install my-otel-demo open-telemetry/opentelemetry-demo \
   --version 0.42.4 -f demo-values.yaml \
   --set components.frontend.imageOverride.tag="$RUM_TAG" --timeout 15m
 
+# Deployment markers in Coralogix APM (needs CORALOGIX_OPS_EVENTS_KEY; skipped otherwise).
+coralogix/ops-events.sh
+
 kubectl get pods -A
