@@ -7,7 +7,7 @@ in the shop's frontend.
 
 ## Deliverables
 
-Account: <https://dpihlaja.app.cx498.coralogix.com>
+Account: <https://dpihlaja.app.cx498.coralogix.com> · Deck: [Coralogix evaluation](https://docs.google.com/presentation/d/1kRBaczyqn1Q2FFFudkNQUE6uZALAzxmxoidSXpqpUrE/edit?usp=sharing)
 
 | Item | In Coralogix | In this repo |
 |---|---|---|
