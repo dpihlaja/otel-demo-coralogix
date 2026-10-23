@@ -7,7 +7,7 @@ in the shop's frontend.
 
 ## Deliverables
 
-Account: <https://dpihlaja.app.cx498.coralogix.com> · Deck: [Coralogix evaluation](https://docs.google.com/presentation/d/1kRBaczyqn1Q2FFFudkNQUE6uZALAzxmxoidSXpqpUrE/edit?usp=sharing)
+Account: <https://dpihlaja.app.cx498.coralogix.com> · Deck: [Coralogix evaluation](https://docs.google.com/presentation/d/1kRBaczyqn1Q2FFFudkNQUE6uZALAzxmxoidSXpqpUrE/edit?usp=sharing) · Written reflection: [Coralogix Onboarding Writeup](https://docs.google.com/document/d/158UCAPmFUB9eVdJbbFzXHzGEQMc7br7Ujm4qNxMpEmw/edit?usp=sharing)
 
 | Item | In Coralogix | In this repo |
 |---|---|---|
@@ -18,6 +18,7 @@ Account: <https://dpihlaja.app.cx498.coralogix.com> · Deck: [Coralogix evaluati
 | SLOs | [SLO Center](https://dpihlaja.app.cx498.coralogix.com/slo) | [`coralogix/events2metrics-and-slos.md`](coralogix/events2metrics-and-slos.md) |
 | Dashboards | [Business health](https://dpihlaja.app.cx498.coralogix.com/dashboards/lVBBrXTKXPJxtIowPSaoj) · [Web and API health](https://dpihlaja.app.cx498.coralogix.com/dashboards/EpGYoQkqLthy2FpVZJ2Y4) · [Web-Client Frontend (RUM)](https://dpihlaja.app.cx498.coralogix.com/dashboards/6Zv9SC5Su14DsfLpwOWyk) · [Infrastructure health](https://dpihlaja.app.cx498.coralogix.com/dashboards/qzoR6PmYBR2f9ZqFJkP13) · [Team Catalog: product-catalog](https://dpihlaja.app.cx498.coralogix.com/dashboards/iPpxRYWcRDpldWJ4FDevT) | `coralogix/dashboards/*.json` |
 | Alerts | [Alerts](https://dpihlaja.app.cx498.coralogix.com/alerts) (7) | [`coralogix/alerts.md`](coralogix/alerts.md) |
+| Written reflection | [Coralogix Onboarding Writeup](https://docs.google.com/document/d/158UCAPmFUB9eVdJbbFzXHzGEQMc7br7Ujm4qNxMpEmw/edit?usp=sharing) | — |
 
 ## Layout
 
