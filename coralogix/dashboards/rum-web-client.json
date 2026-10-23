@@ -1,0 +1,688 @@
+{
+  "id": "6Zv9SC5Su14DsfLpwOWyk",
+  "name": "Web-Client Frontend",
+  "description": "What shoppers' browsers experience, from Coralogix RUM (application Web-Client): sessions, Core Web Vitals, page and click behaviour, browser-side network calls, JavaScript errors and releases. Nearly all traffic is the load generator's headless Chrome (label synthetic=true); real sessions are counted separately.",
+  "relativeTimeFrame": "10800s",
+  "autoRefresh": "one_minute",
+  "layout": {
+    "sections": [
+      {
+        "options": {
+          "name": "At a glance (last hour)",
+          "description": "Web vitals use Google's thresholds at p75: LCP good < 2.5s, poor > 4s; INP good < 200ms, poor > 500ms; CLS good < 0.1, poor > 0.25.",
+          "color": "SECTION_PREDEFINED_COLOR_GREEN"
+        },
+        "rows": [
+          {
+            "height": 12,
+            "widgets": [
+              {
+                "title": "Sessions",
+                "definition": {
+                  "gauge": {
+                    "query": {
+                      "dataprime": {
+                        "query": "source rum.events | filter $l.applicationName == 'Web-Client' | aggregate approx_count_distinct($d.session_context.session_id) as sessions",
+                        "timeFrame": {
+                          "relative": "3600s"
+                        }
+                      }
+                    },
+                    "min": 0,
+                    "max": 2000,
+                    "unit": "UNIT_NUMBER",
+                    "decimal": 0,
+                    "thresholdType": "THRESHOLD_TYPE_ABSOLUTE",
+                    "thresholdBy": "THRESHOLD_BY_BACKGROUND",
+                    "thresholds": [
+                      {
+                        "from": 0,
+                        "color": "green"
+                      }
+                    ],
+                    "arcDisplay": {
+                      "valueArc": false,
+                      "thresholdArc": false
+                    },
+                    "displaySeriesName": false
+                  }
+                }
+              },
+              {
+                "title": "Real-user sessions",
+                "description": "Sessions not from the load generator (labels.synthetic = false)",
+                "definition": {
+                  "gauge": {
+                    "query": {
+                      "dataprime": {
+                        "query": "source rum.events | filter $l.applicationName == 'Web-Client' && $d.labels.synthetic == 'false' | aggregate approx_count_distinct($d.session_context.session_id) as sessions",
+                        "timeFrame": {
+                          "relative": "3600s"
+                        }
+                      }
+                    },
+                    "min": 0,
+                    "max": 100,
+                    "unit": "UNIT_NUMBER",
+                    "decimal": 0,
+                    "thresholdType": "THRESHOLD_TYPE_ABSOLUTE",
+                    "thresholdBy": "THRESHOLD_BY_BACKGROUND",
+                    "thresholds": [
+                      {
+                        "from": 0,
+                        "color": "green"
+                      }
+                    ],
+                    "arcDisplay": {
+                      "valueArc": false,
+                      "thresholdArc": false
+                    },
+                    "displaySeriesName": false
+                  }
+                }
+              },
+              {
+                "title": "Page loads",
+                "description": "One TTFB measurement per full page load",
+                "definition": {
+                  "gauge": {
+                    "query": {
+                      "dataprime": {
+                        "query": "source rum.events | filter $l.applicationName == 'Web-Client' && $d.event_context.type == 'web-vitals' && $d.web_vitals_context.name == 'TTFB' | aggregate count() as page_loads",
+                        "timeFrame": {
+                          "relative": "3600s"
+                        }
+                      }
+                    },
+                    "min": 0,
+                    "max": 2000,
+                    "unit": "UNIT_NUMBER",
+                    "decimal": 0,
+                    "thresholdType": "THRESHOLD_TYPE_ABSOLUTE",
+                    "thresholdBy": "THRESHOLD_BY_BACKGROUND",
+                    "thresholds": [
+                      {
+                        "from": 0,
+                        "color": "green"
+                      }
+                    ],
+                    "arcDisplay": {
+                      "valueArc": false,
+                      "thresholdArc": false
+                    },
+                    "displaySeriesName": false
+                  }
+                }
+              },
+              {
+                "title": "JavaScript errors",
+                "definition": {
+                  "gauge": {
+                    "query": {
+                      "dataprime": {
+                        "query": "source rum.events | filter $l.applicationName == 'Web-Client' | aggregate sum(if($d.event_context.type == 'error', 1, 0)) as js_errors",
+                        "timeFrame": {
+                          "relative": "3600s"
+                        }
+                      }
+                    },
+                    "min": 0,
+                    "max": 50,
+                    "unit": "UNIT_NUMBER",
+                    "decimal": 0,
+                    "thresholdType": "THRESHOLD_TYPE_ABSOLUTE",
+                    "thresholdBy": "THRESHOLD_BY_BACKGROUND",
+                    "thresholds": [
+                      {
+                        "from": 0,
+                        "color": "green"
+                      },
+                      {
+                        "from": 1,
+                        "color": "orange"
+                      },
+                      {
+                        "from": 10,
+                        "color": "red"
+                      }
+                    ],
+                    "arcDisplay": {
+                      "valueArc": false,
+                      "thresholdArc": false
+                    },
+                    "displaySeriesName": false
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "height": 12,
+            "widgets": [
+              {
+                "title": "LCP p75",
+                "description": "Largest Contentful Paint: when the main content is visible",
+                "definition": {
+                  "gauge": {
+                    "query": {
+                      "dataprime": {
+                        "query": "source rum.events | filter $l.applicationName == 'Web-Client' && $d.event_context.type == 'web-vitals' && $d.web_vitals_context.name == 'LCP' | aggregate percentile(0.75, $d.web_vitals_context.value:number) as lcp_p75",
+                        "timeFrame": {
+                          "relative": "3600s"
+                        }
+                      }
+                    },
+                    "min": 0,
+                    "max": 6000,
+                    "unit": "UNIT_MILLISECONDS",
+                    "decimal": 0,
+                    "thresholdType": "THRESHOLD_TYPE_ABSOLUTE",
+                    "thresholdBy": "THRESHOLD_BY_BACKGROUND",
+                    "thresholds": [
+                      {
+                        "from": 0,
+                        "color": "green"
+                      },
+                      {
+                        "from": 2500,
+                        "color": "orange"
+                      },
+                      {
+                        "from": 4000,
+                        "color": "red"
+                      }
+                    ],
+                    "arcDisplay": {
+                      "valueArc": false,
+                      "thresholdArc": false
+                    },
+                    "displaySeriesName": false
+                  }
+                }
+              },
+              {
+                "title": "INP p75",
+                "description": "Interaction to Next Paint: how fast the page reacts to clicks",
+                "definition": {
+                  "gauge": {
+                    "query": {
+                      "dataprime": {
+                        "query": "source rum.events | filter $l.applicationName == 'Web-Client' && $d.event_context.type == 'web-vitals' && $d.web_vitals_context.name == 'INP' | aggregate percentile(0.75, $d.web_vitals_context.value:number) as inp_p75",
+                        "timeFrame": {
+                          "relative": "3600s"
+                        }
+                      }
+                    },
+                    "min": 0,
+                    "max": 800,
+                    "unit": "UNIT_MILLISECONDS",
+                    "decimal": 0,
+                    "thresholdType": "THRESHOLD_TYPE_ABSOLUTE",
+                    "thresholdBy": "THRESHOLD_BY_BACKGROUND",
+                    "thresholds": [
+                      {
+                        "from": 0,
+                        "color": "green"
+                      },
+                      {
+                        "from": 200,
+                        "color": "orange"
+                      },
+                      {
+                        "from": 500,
+                        "color": "red"
+                      }
+                    ],
+                    "arcDisplay": {
+                      "valueArc": false,
+                      "thresholdArc": false
+                    },
+                    "displaySeriesName": false
+                  }
+                }
+              },
+              {
+                "title": "CLS p75",
+                "description": "Cumulative Layout Shift: how much the page jumps around while loading",
+                "definition": {
+                  "gauge": {
+                    "query": {
+                      "dataprime": {
+                        "query": "source rum.events | filter $l.applicationName == 'Web-Client' && $d.event_context.type == 'web-vitals' && $d.web_vitals_context.name == 'CLS' | aggregate percentile(0.75, $d.web_vitals_context.value:number) as cls_p75",
+                        "timeFrame": {
+                          "relative": "3600s"
+                        }
+                      }
+                    },
+                    "min": 0,
+                    "max": 0.5,
+                    "unit": "UNIT_NUMBER",
+                    "decimal": 3,
+                    "thresholdType": "THRESHOLD_TYPE_ABSOLUTE",
+                    "thresholdBy": "THRESHOLD_BY_BACKGROUND",
+                    "thresholds": [
+                      {
+                        "from": 0,
+                        "color": "green"
+                      },
+                      {
+                        "from": 0.1,
+                        "color": "orange"
+                      },
+                      {
+                        "from": 0.25,
+                        "color": "red"
+                      }
+                    ],
+                    "arcDisplay": {
+                      "valueArc": false,
+                      "thresholdArc": false
+                    },
+                    "displaySeriesName": false
+                  }
+                }
+              },
+              {
+                "title": "Failed browser requests",
+                "description": "Browser fetch/XHR calls answered with 4xx/5xx",
+                "definition": {
+                  "gauge": {
+                    "query": {
+                      "dataprime": {
+                        "query": "source rum.events | filter $l.applicationName == 'Web-Client' && $d.event_context.type == 'network-request' | aggregate sum(if($d.network_request_context.status_code:number >= 400, 1, 0)) as failed, count() as total | create failure_rate from failed / total | choose failure_rate",
+                        "timeFrame": {
+                          "relative": "3600s"
+                        }
+                      }
+                    },
+                    "min": 0,
+                    "max": 0.1,
+                    "unit": "UNIT_PERCENT_ZERO_ONE",
+                    "decimal": 2,
+                    "thresholdType": "THRESHOLD_TYPE_ABSOLUTE",
+                    "thresholdBy": "THRESHOLD_BY_BACKGROUND",
+                    "thresholds": [
+                      {
+                        "from": 0,
+                        "color": "green"
+                      },
+                      {
+                        "from": 0.01,
+                        "color": "orange"
+                      },
+                      {
+                        "from": 0.05,
+                        "color": "red"
+                      }
+                    ],
+                    "arcDisplay": {
+                      "valueArc": false,
+                      "thresholdArc": false
+                    },
+                    "displaySeriesName": false
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "options": {
+          "name": "Core Web Vitals",
+          "description": "p75 is what Google uses to rate a site. Ratings are per measurement (good / needs-improvement / poor).",
+          "color": "SECTION_PREDEFINED_COLOR_BLUE"
+        },
+        "rows": [
+          {
+            "height": 19,
+            "widgets": [
+              {
+                "title": "Load and responsiveness p75 (ms)",
+                "definition": {
+                  "lineChart": {
+                    "queryDefinitions": [
+                      {
+                        "name": "p75",
+                        "seriesNameTemplate": "{{vital}}",
+                        "unit": "UNIT_MILLISECONDS",
+                        "query": {
+                          "dataprime": {
+                            "query": "source rum.events | filter $l.applicationName == 'Web-Client' && $d.event_context.type == 'web-vitals' && $d.web_vitals_context.name.in('LCP', 'FCP', 'INP', 'TTFB') | groupby roundTime($m.timestamp, 5m) as timestamp, $d.web_vitals_context.name:string as vital aggregate percentile(0.75, $d.web_vitals_context.value:number) as p75"
+                          }
+                        }
+                      }
+                    ],
+                    "legend": {
+                      "isVisible": true,
+                      "columns": [
+                        "LEGEND_COLUMN_LAST",
+                        "LEGEND_COLUMN_MAX"
+                      ],
+                      "placement": "LEGEND_PLACEMENT_BOTTOM"
+                    }
+                  }
+                }
+              },
+              {
+                "title": "Ratings by vital",
+                "definition": {
+                  "horizontalBarChart": {
+                    "query": {
+                      "dataprime": {
+                        "query": "source rum.events | filter $l.applicationName == 'Web-Client' && $d.event_context.type == 'web-vitals' && $d.web_vitals_context.rating != null | groupby $d.web_vitals_context.name:string as vital, $d.web_vitals_context.rating:string as rating aggregate count() as measurements",
+                        "groupNames": [
+                          "vital"
+                        ],
+                        "stackedGroupName": "rating"
+                      }
+                    },
+                    "sortBy": "SORT_BY_TYPE_NAME",
+                    "maxBarsPerChart": 10
+                  }
+                }
+              },
+              {
+                "title": "LCP p75 by page",
+                "definition": {
+                  "horizontalBarChart": {
+                    "query": {
+                      "dataprime": {
+                        "query": "source rum.events | filter $l.applicationName == 'Web-Client' && $d.event_context.type == 'web-vitals' && $d.web_vitals_context.name == 'LCP' | groupby $d.page_context.page_fragments:string as page aggregate percentile(0.75, $d.web_vitals_context.value:number) as lcp_p75",
+                        "groupNames": [
+                          "page"
+                        ]
+                      }
+                    },
+                    "sortBy": "SORT_BY_TYPE_VALUE",
+                    "maxBarsPerChart": 10
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "options": {
+          "name": "Pages and interactions",
+          "description": "Where shoppers go and what they click. Rage clicks (repeated clicks in frustration) and dead clicks (clicks that do nothing) point at broken or slow UI.",
+          "color": "SECTION_PREDEFINED_COLOR_PURPLE"
+        },
+        "rows": [
+          {
+            "height": 19,
+            "widgets": [
+              {
+                "title": "Page loads by page",
+                "definition": {
+                  "horizontalBarChart": {
+                    "query": {
+                      "dataprime": {
+                        "query": "source rum.events | filter $l.applicationName == 'Web-Client' && $d.event_context.type == 'web-vitals' && $d.web_vitals_context.name == 'TTFB' | groupby $d.page_context.page_fragments:string as page aggregate count() as page_loads",
+                        "groupNames": [
+                          "page"
+                        ]
+                      }
+                    },
+                    "sortBy": "SORT_BY_TYPE_VALUE",
+                    "maxBarsPerChart": 10
+                  }
+                }
+              },
+              {
+                "title": "Most clicked (by element label)",
+                "definition": {
+                  "horizontalBarChart": {
+                    "query": {
+                      "dataprime": {
+                        "query": "source rum.events | filter $l.applicationName == 'Web-Client' && $d.event_context.type == 'user-interaction' && $d.interaction_context.resolved_name != null && $d.interaction_context.resolved_name != '' | groupby $d.interaction_context.resolved_name:string as element aggregate count() as clicks",
+                        "groupNames": [
+                          "element"
+                        ]
+                      }
+                    },
+                    "sortBy": "SORT_BY_TYPE_VALUE",
+                    "maxBarsPerChart": 10
+                  }
+                }
+              },
+              {
+                "title": "Frustration signals (per 5 min)",
+                "definition": {
+                  "lineChart": {
+                    "queryDefinitions": [
+                      {
+                        "name": "signals",
+                        "seriesNameTemplate": "{{signal}}",
+                        "query": {
+                          "dataprime": {
+                            "query": "source rum.events | filter $l.applicationName == 'Web-Client' && ($d.event_context.type == 'user-interaction' || $d.event_context.type == 'longtask') | create signal from if($d.interaction_context.is_rage_click == true, 'rage click', if($d.interaction_context.is_dead_click == true, 'dead click', if($d.event_context.type == 'longtask', 'long task (>50ms)', 'ok'))) | filter signal != 'ok' | groupby roundTime($m.timestamp, 5m) as timestamp, signal aggregate count() as n"
+                          }
+                        }
+                      }
+                    ],
+                    "legend": {
+                      "isVisible": true,
+                      "columns": [
+                        "LEGEND_COLUMN_LAST",
+                        "LEGEND_COLUMN_SUM"
+                      ],
+                      "placement": "LEGEND_PLACEMENT_BOTTOM"
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "options": {
+          "name": "Browser network calls",
+          "description": "fetch/XHR as the browser saw them, including network time the backend never sees. Grouped by path (query strings dropped).",
+          "color": "SECTION_PREDEFINED_COLOR_CYAN"
+        },
+        "rows": [
+          {
+            "height": 19,
+            "widgets": [
+              {
+                "title": "Requests by path (per 5 min)",
+                "definition": {
+                  "lineChart": {
+                    "queryDefinitions": [
+                      {
+                        "name": "requests",
+                        "seriesNameTemplate": "{{path}}",
+                        "query": {
+                          "dataprime": {
+                            "query": "source rum.events | filter $l.applicationName == 'Web-Client' && $d.event_context.type == 'network-request' | groupby roundTime($m.timestamp, 5m) as timestamp, $d.network_request_context.fragments:string as path aggregate count() as requests"
+                          }
+                        }
+                      }
+                    ],
+                    "legend": {
+                      "isVisible": true,
+                      "columns": [
+                        "LEGEND_COLUMN_LAST",
+                        "LEGEND_COLUMN_AVG"
+                      ],
+                      "placement": "LEGEND_PLACEMENT_SIDE"
+                    }
+                  }
+                }
+              },
+              {
+                "title": "Browser-measured p75 by path",
+                "definition": {
+                  "horizontalBarChart": {
+                    "query": {
+                      "dataprime": {
+                        "query": "source rum.events | filter $l.applicationName == 'Web-Client' && $d.event_context.type == 'network-request' | groupby $d.network_request_context.fragments:string as path aggregate percentile(0.75, $d.network_request_context.duration:number) as p75_ms",
+                        "groupNames": [
+                          "path"
+                        ]
+                      }
+                    },
+                    "sortBy": "SORT_BY_TYPE_VALUE",
+                    "maxBarsPerChart": 12
+                  }
+                }
+              },
+              {
+                "title": "Average response size by path (bytes)",
+                "definition": {
+                  "horizontalBarChart": {
+                    "query": {
+                      "dataprime": {
+                        "query": "source rum.events | filter $l.applicationName == 'Web-Client' && $d.event_context.type == 'network-request' && $d.network_request_context.response_content_length != null | groupby $d.network_request_context.fragments:string as path aggregate avg($d.network_request_context.response_content_length:number) as avg_bytes",
+                        "groupNames": [
+                          "path"
+                        ]
+                      }
+                    },
+                    "sortBy": "SORT_BY_TYPE_VALUE",
+                    "maxBarsPerChart": 12
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "height": 19,
+            "widgets": [
+              {
+                "title": "Failed browser requests by path and status (per 5 min)",
+                "definition": {
+                  "lineChart": {
+                    "queryDefinitions": [
+                      {
+                        "name": "failed",
+                        "seriesNameTemplate": "{{path}} {{status}}",
+                        "query": {
+                          "dataprime": {
+                            "query": "source rum.events | filter $l.applicationName == 'Web-Client' && $d.event_context.type == 'network-request' && $d.network_request_context.status_code:number >= 400 | groupby roundTime($m.timestamp, 5m) as timestamp, $d.network_request_context.fragments:string as path, $d.network_request_context.status_code:string as status aggregate count() as failed"
+                          }
+                        }
+                      }
+                    ],
+                    "legend": {
+                      "isVisible": true,
+                      "columns": [
+                        "LEGEND_COLUMN_LAST",
+                        "LEGEND_COLUMN_SUM"
+                      ],
+                      "placement": "LEGEND_PLACEMENT_BOTTOM"
+                    }
+                  }
+                }
+              },
+              {
+                "title": "JavaScript errors by page (per 5 min)",
+                "description": "None so far: the demo frontend doesn't throw. Turns on with real errors or CoralogixRum.captureError().",
+                "definition": {
+                  "lineChart": {
+                    "queryDefinitions": [
+                      {
+                        "name": "errors",
+                        "seriesNameTemplate": "{{page}}",
+                        "query": {
+                          "dataprime": {
+                            "query": "source rum.events | filter $l.applicationName == 'Web-Client' && $d.event_context.type == 'error' | groupby roundTime($m.timestamp, 5m) as timestamp, $d.page_context.page_fragments:string as page aggregate count() as errors"
+                          }
+                        }
+                      }
+                    ],
+                    "legend": {
+                      "isVisible": true,
+                      "columns": [
+                        "LEGEND_COLUMN_LAST",
+                        "LEGEND_COLUMN_SUM"
+                      ],
+                      "placement": "LEGEND_PLACEMENT_BOTTOM"
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "options": {
+          "name": "Audience and releases",
+          "description": "Who is browsing and on which build. app_version is set at image build time and matches the uploaded source maps, so a regression can be tied to a release.",
+          "color": "SECTION_PREDEFINED_COLOR_ORANGE"
+        },
+        "rows": [
+          {
+            "height": 19,
+            "widgets": [
+              {
+                "title": "Sessions by release",
+                "definition": {
+                  "lineChart": {
+                    "queryDefinitions": [
+                      {
+                        "name": "sessions",
+                        "seriesNameTemplate": "{{version}}",
+                        "query": {
+                          "dataprime": {
+                            "query": "source rum.events | filter $l.applicationName == 'Web-Client' | groupby roundTime($m.timestamp, 5m) as timestamp, $d.version_metadata.app_version:string as version aggregate approx_count_distinct($d.session_context.session_id) as sessions"
+                          }
+                        }
+                      }
+                    ],
+                    "legend": {
+                      "isVisible": true,
+                      "columns": [
+                        "LEGEND_COLUMN_LAST",
+                        "LEGEND_COLUMN_SUM"
+                      ],
+                      "placement": "LEGEND_PLACEMENT_BOTTOM"
+                    }
+                  }
+                }
+              },
+              {
+                "title": "Sessions: synthetic vs real",
+                "definition": {
+                  "horizontalBarChart": {
+                    "query": {
+                      "dataprime": {
+                        "query": "source rum.events | filter $l.applicationName == 'Web-Client' | create traffic from if($d.labels.synthetic == 'true', 'load generator', 'real users') | groupby traffic aggregate approx_count_distinct($d.session_context.session_id) as sessions",
+                        "groupNames": [
+                          "traffic"
+                        ]
+                      }
+                    },
+                    "sortBy": "SORT_BY_TYPE_VALUE",
+                    "maxBarsPerChart": 5
+                  }
+                }
+              },
+              {
+                "title": "Sessions by browser, OS and country",
+                "definition": {
+                  "horizontalBarChart": {
+                    "query": {
+                      "dataprime": {
+                        "query": "source rum.events | filter $l.applicationName == 'Web-Client' | create client from concat($d.session_context.browser:string, ' / ', $d.session_context.os:string, ' / ', $d.session_context.ip_geoip.country_name:string) | groupby client aggregate approx_count_distinct($d.session_context.session_id) as sessions",
+                        "groupNames": [
+                          "client"
+                        ]
+                      }
+                    },
+                    "sortBy": "SORT_BY_TYPE_VALUE",
+                    "maxBarsPerChart": 10
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

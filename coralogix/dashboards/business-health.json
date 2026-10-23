@@ -1,0 +1,643 @@
+{
+  "id": "lVBBrXTKXPJxtIowPSaoj",
+  "name": "Business health",
+  "description": "Are shoppers buying, and if not, where are they dropping off? Orders and revenue (Events2Metrics on checkout logs), the shopper funnel (span metrics), product interest (logs enriched with the product catalog), payments, and customer experience (SLOs, latency, RUM web vitals). Revenue mixes USD and CAD: the order log carries no currency.",
+  "relativeTimeFrame": "10800s",
+  "autoRefresh": "one_minute",
+  "layout": {
+    "sections": [
+      {
+        "options": {
+          "name": "Business at a glance (last hour)",
+          "description": "Green = the shop is selling normally. Red orders or revenue with healthy infrastructure points at checkout or payments.",
+          "color": "SECTION_PREDEFINED_COLOR_GREEN"
+        },
+        "rows": [
+          {
+            "height": 12,
+            "widgets": [
+              {
+                "title": "Orders (1h)",
+                "description": "shop_orders E2M: one event per 'order placed' log in checkout. Baseline ~160/h with the load generator.",
+                "definition": {
+                  "gauge": {
+                    "query": {
+                      "metrics": {
+                        "promqlQuery": "sum(sum_over_time(shop_orders_cx_docs_total[1h])) or vector(0)",
+                        "aggregation": "AGGREGATION_LAST"
+                      }
+                    },
+                    "min": 0,
+                    "max": 250,
+                    "unit": "UNIT_NUMBER",
+                    "decimal": 0,
+                    "thresholdType": "THRESHOLD_TYPE_ABSOLUTE",
+                    "thresholdBy": "THRESHOLD_BY_BACKGROUND",
+                    "thresholds": [
+                      {
+                        "from": 0,
+                        "color": "red"
+                      },
+                      {
+                        "from": 80,
+                        "color": "orange"
+                      },
+                      {
+                        "from": 130,
+                        "color": "green"
+                      }
+                    ],
+                    "arcDisplay": {
+                      "valueArc": false,
+                      "thresholdArc": false
+                    },
+                    "displaySeriesName": false
+                  }
+                }
+              },
+              {
+                "title": "Revenue (1h)",
+                "description": "Sum of demo.order.amount on placed orders (shop_order_value E2M). Mostly USD, some CAD.",
+                "definition": {
+                  "gauge": {
+                    "query": {
+                      "metrics": {
+                        "promqlQuery": "sum(sum_over_time(shop_order_value_cx_sum[1h])) or vector(0)",
+                        "aggregation": "AGGREGATION_LAST"
+                      }
+                    },
+                    "min": 0,
+                    "max": 800000,
+                    "unit": "UNIT_USD",
+                    "decimal": 0,
+                    "thresholdType": "THRESHOLD_TYPE_ABSOLUTE",
+                    "thresholdBy": "THRESHOLD_BY_BACKGROUND",
+                    "thresholds": [
+                      {
+                        "from": 0,
+                        "color": "red"
+                      },
+                      {
+                        "from": 250000,
+                        "color": "orange"
+                      },
+                      {
+                        "from": 400000,
+                        "color": "green"
+                      }
+                    ],
+                    "arcDisplay": {
+                      "valueArc": false,
+                      "thresholdArc": false
+                    },
+                    "displaySeriesName": false
+                  }
+                }
+              },
+              {
+                "title": "Average order value (1h)",
+                "definition": {
+                  "gauge": {
+                    "query": {
+                      "metrics": {
+                        "promqlQuery": "sum(sum_over_time(shop_order_value_cx_sum[1h])) / sum(sum_over_time(shop_order_value_cx_count[1h]))",
+                        "aggregation": "AGGREGATION_LAST"
+                      }
+                    },
+                    "min": 0,
+                    "max": 8000,
+                    "unit": "UNIT_USD",
+                    "decimal": 0,
+                    "thresholdType": "THRESHOLD_TYPE_ABSOLUTE",
+                    "thresholdBy": "THRESHOLD_BY_BACKGROUND",
+                    "thresholds": [
+                      {
+                        "from": 0,
+                        "color": "blue"
+                      }
+                    ],
+                    "arcDisplay": {
+                      "valueArc": false,
+                      "thresholdArc": false
+                    },
+                    "displaySeriesName": false
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "height": 12,
+            "widgets": [
+              {
+                "title": "Checkout success (1h)",
+                "description": "PlaceOrder calls without error / all PlaceOrder calls (span metrics, unsampled). SLO target 99.5%.",
+                "definition": {
+                  "gauge": {
+                    "query": {
+                      "metrics": {
+                        "promqlQuery": "sum(increase(calls_total{service_name=\"checkout\", span_name=\"oteldemo.CheckoutService/PlaceOrder\", span_kind=\"SPAN_KIND_SERVER\", status_code!=\"STATUS_CODE_ERROR\"}[1h])) / sum(increase(calls_total{service_name=\"checkout\", span_name=\"oteldemo.CheckoutService/PlaceOrder\", span_kind=\"SPAN_KIND_SERVER\"}[1h]))",
+                        "aggregation": "AGGREGATION_LAST"
+                      }
+                    },
+                    "min": 0,
+                    "max": 1,
+                    "unit": "UNIT_PERCENT_ZERO_ONE",
+                    "decimal": 1,
+                    "thresholdType": "THRESHOLD_TYPE_ABSOLUTE",
+                    "thresholdBy": "THRESHOLD_BY_BACKGROUND",
+                    "thresholds": [
+                      {
+                        "from": 0,
+                        "color": "red"
+                      },
+                      {
+                        "from": 0.95,
+                        "color": "orange"
+                      },
+                      {
+                        "from": 0.995,
+                        "color": "green"
+                      }
+                    ],
+                    "arcDisplay": {
+                      "valueArc": false,
+                      "thresholdArc": false
+                    },
+                    "displaySeriesName": false
+                  }
+                }
+              },
+              {
+                "title": "Cart to order conversion (1h)",
+                "description": "Orders placed / add-to-cart requests. A drop with healthy checkout success means shoppers are abandoning, not failing.",
+                "definition": {
+                  "gauge": {
+                    "query": {
+                      "metrics": {
+                        "promqlQuery": "sum(sum_over_time(shop_orders_cx_docs_total[1h])) / sum(increase(calls_total{service_name=\"frontend\", span_kind=\"SPAN_KIND_SERVER\", http_endpoint=\"POST /api/cart\"}[1h]))",
+                        "aggregation": "AGGREGATION_LAST"
+                      }
+                    },
+                    "min": 0,
+                    "max": 0.5,
+                    "unit": "UNIT_PERCENT_ZERO_ONE",
+                    "decimal": 1,
+                    "thresholdType": "THRESHOLD_TYPE_ABSOLUTE",
+                    "thresholdBy": "THRESHOLD_BY_BACKGROUND",
+                    "thresholds": [
+                      {
+                        "from": 0,
+                        "color": "red"
+                      },
+                      {
+                        "from": 0.08,
+                        "color": "orange"
+                      },
+                      {
+                        "from": 0.12,
+                        "color": "green"
+                      }
+                    ],
+                    "arcDisplay": {
+                      "valueArc": false,
+                      "thresholdArc": false
+                    },
+                    "displaySeriesName": false
+                  }
+                }
+              },
+              {
+                "title": "Edge availability (1h)",
+                "description": "Requests through the edge proxy that didn't return 5xx (proxy_requests E2M on parsed Envoy logs). SLO target 99.5%.",
+                "definition": {
+                  "gauge": {
+                    "query": {
+                      "metrics": {
+                        "promqlQuery": "sum(sum_over_time(proxy_requests_cx_docs_total{status_code!~\"5..\"}[1h])) / sum(sum_over_time(proxy_requests_cx_docs_total[1h]))",
+                        "aggregation": "AGGREGATION_LAST"
+                      }
+                    },
+                    "min": 0,
+                    "max": 1,
+                    "unit": "UNIT_PERCENT_ZERO_ONE",
+                    "decimal": 2,
+                    "thresholdType": "THRESHOLD_TYPE_ABSOLUTE",
+                    "thresholdBy": "THRESHOLD_BY_BACKGROUND",
+                    "thresholds": [
+                      {
+                        "from": 0,
+                        "color": "red"
+                      },
+                      {
+                        "from": 0.99,
+                        "color": "orange"
+                      },
+                      {
+                        "from": 0.995,
+                        "color": "green"
+                      }
+                    ],
+                    "arcDisplay": {
+                      "valueArc": false,
+                      "thresholdArc": false
+                    },
+                    "displaySeriesName": false
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "options": {
+          "name": "Orders and revenue over time",
+          "description": "Placed orders against failed checkouts. A gap opening between them is lost revenue.",
+          "color": "SECTION_PREDEFINED_COLOR_BLUE"
+        },
+        "rows": [
+          {
+            "height": 19,
+            "widgets": [
+              {
+                "title": "Orders vs failed checkouts (per minute)",
+                "definition": {
+                  "lineChart": {
+                    "queryDefinitions": [
+                      {
+                        "name": "orders placed",
+                        "seriesNameTemplate": "orders placed",
+                        "query": {
+                          "metrics": {
+                            "promqlQuery": "sum(shop_orders_cx_docs_total)"
+                          }
+                        }
+                      },
+                      {
+                        "name": "failed checkouts",
+                        "seriesNameTemplate": "failed checkouts",
+                        "query": {
+                          "metrics": {
+                            "promqlQuery": "(sum(rate(calls_total{service_name=\"checkout\", span_name=\"oteldemo.CheckoutService/PlaceOrder\", span_kind=\"SPAN_KIND_SERVER\", status_code=\"STATUS_CODE_ERROR\"}[5m])) * 60) or vector(0)"
+                          }
+                        }
+                      }
+                    ],
+                    "legend": {
+                      "isVisible": true,
+                      "columns": [
+                        "LEGEND_COLUMN_SUM",
+                        "LEGEND_COLUMN_AVG"
+                      ],
+                      "placement": "LEGEND_PLACEMENT_BOTTOM"
+                    }
+                  }
+                }
+              },
+              {
+                "title": "Revenue (per 5 min)",
+                "definition": {
+                  "lineChart": {
+                    "queryDefinitions": [
+                      {
+                        "name": "revenue",
+                        "seriesNameTemplate": "revenue",
+                        "unit": "UNIT_USD",
+                        "query": {
+                          "metrics": {
+                            "promqlQuery": "sum(sum_over_time(shop_order_value_cx_sum[5m]))"
+                          }
+                        }
+                      }
+                    ],
+                    "legend": {
+                      "isVisible": true,
+                      "columns": [
+                        "LEGEND_COLUMN_LAST",
+                        "LEGEND_COLUMN_AVG"
+                      ],
+                      "placement": "LEGEND_PLACEMENT_BOTTOM"
+                    }
+                  }
+                }
+              },
+              {
+                "title": "Average order value and items per order (15 min)",
+                "definition": {
+                  "lineChart": {
+                    "queryDefinitions": [
+                      {
+                        "name": "average order value",
+                        "seriesNameTemplate": "average order value",
+                        "unit": "UNIT_USD",
+                        "query": {
+                          "metrics": {
+                            "promqlQuery": "sum(sum_over_time(shop_order_value_cx_sum[15m])) / sum(sum_over_time(shop_order_value_cx_count[15m]))"
+                          }
+                        }
+                      },
+                      {
+                        "name": "items per order",
+                        "seriesNameTemplate": "items per order",
+                        "decimal": 1,
+                        "query": {
+                          "metrics": {
+                            "promqlQuery": "sum(sum_over_time(shop_order_items_cx_sum[15m])) / sum(sum_over_time(shop_orders_cx_docs_total[15m]))"
+                          }
+                        }
+                      }
+                    ],
+                    "legend": {
+                      "isVisible": true,
+                      "columns": [
+                        "LEGEND_COLUMN_LAST",
+                        "LEGEND_COLUMN_AVG"
+                      ],
+                      "placement": "LEGEND_PLACEMENT_BOTTOM"
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "options": {
+          "name": "Shopper funnel",
+          "description": "Where shoppers drop off: product views, add to cart, checkout, order. Counts are exact (span metrics see 100% of requests, before trace sampling).",
+          "color": "SECTION_PREDEFINED_COLOR_PURPLE"
+        },
+        "rows": [
+          {
+            "height": 19,
+            "widgets": [
+              {
+                "title": "Funnel (last hour)",
+                "definition": {
+                  "horizontalBarChart": {
+                    "query": {
+                      "metrics": {
+                        "promqlQuery": "label_replace(sum(increase(calls_total{service_name=\"frontend\", span_kind=\"SPAN_KIND_SERVER\", http_endpoint=\"GET /api/products/:productId\"}[1h])), \"stage\", \"1. Product views\", \"\", \"\") or label_replace(sum(increase(calls_total{service_name=\"frontend\", span_kind=\"SPAN_KIND_SERVER\", http_endpoint=\"POST /api/cart\"}[1h])), \"stage\", \"2. Added to cart\", \"\", \"\") or label_replace(sum(increase(calls_total{service_name=\"frontend\", span_kind=\"SPAN_KIND_SERVER\", http_endpoint=\"POST /api/checkout\"}[1h])), \"stage\", \"3. Checkout started\", \"\", \"\") or label_replace(sum(sum_over_time(shop_orders_cx_docs_total[1h])), \"stage\", \"4. Orders placed\", \"\", \"\")",
+                        "promqlQueryType": "PROM_QL_QUERY_TYPE_INSTANT",
+                        "aggregation": "AGGREGATION_LAST",
+                        "groupNames": [
+                          "stage"
+                        ]
+                      }
+                    },
+                    "sortBy": "SORT_BY_TYPE_NAME",
+                    "maxBarsPerChart": 10
+                  }
+                }
+              },
+              {
+                "title": "Step conversion (15 min windows)",
+                "description": "Cart to checkout: shoppers who start checking out. Checkout to order: checkouts that succeed.",
+                "definition": {
+                  "lineChart": {
+                    "queryDefinitions": [
+                      {
+                        "name": "cart to checkout",
+                        "seriesNameTemplate": "cart to checkout",
+                        "unit": "UNIT_PERCENT_ZERO_ONE",
+                        "yAxisMin": 0,
+                        "yAxisMax": 1,
+                        "query": {
+                          "metrics": {
+                            "promqlQuery": "sum(rate(calls_total{service_name=\"frontend\", span_kind=\"SPAN_KIND_SERVER\", http_endpoint=\"POST /api/checkout\"}[15m])) / sum(rate(calls_total{service_name=\"frontend\", span_kind=\"SPAN_KIND_SERVER\", http_endpoint=\"POST /api/cart\"}[15m]))"
+                          }
+                        }
+                      },
+                      {
+                        "name": "checkout to order",
+                        "seriesNameTemplate": "checkout to order",
+                        "unit": "UNIT_PERCENT_ZERO_ONE",
+                        "yAxisMin": 0,
+                        "yAxisMax": 1,
+                        "query": {
+                          "metrics": {
+                            "promqlQuery": "sum(rate(calls_total{service_name=\"checkout\", span_name=\"oteldemo.CheckoutService/PlaceOrder\", span_kind=\"SPAN_KIND_SERVER\", status_code!=\"STATUS_CODE_ERROR\"}[15m])) / sum(rate(calls_total{service_name=\"checkout\", span_name=\"oteldemo.CheckoutService/PlaceOrder\", span_kind=\"SPAN_KIND_SERVER\"}[15m]))"
+                          }
+                        }
+                      }
+                    ],
+                    "legend": {
+                      "isVisible": true,
+                      "columns": [
+                        "LEGEND_COLUMN_LAST",
+                        "LEGEND_COLUMN_MIN"
+                      ],
+                      "placement": "LEGEND_PLACEMENT_BOTTOM"
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "options": {
+          "name": "Products and payments",
+          "description": "Product names and categories come from the product-catalog custom enrichment; the logs only carry the product ID.",
+          "color": "SECTION_PREDEFINED_COLOR_CYAN"
+        },
+        "rows": [
+          {
+            "height": 19,
+            "widgets": [
+              {
+                "title": "Product views by product",
+                "description": "Frontend product API requests, enriched with product name and category",
+                "definition": {
+                  "horizontalBarChart": {
+                    "query": {
+                      "logs": {
+                        "luceneQuery": "attributes.service_name:frontend AND _exists_:product.product_name",
+                        "aggregation": {
+                          "type": "count"
+                        },
+                        "groupNamesFields": [
+                          {
+                            "keypath": [
+                              "product",
+                              "product_name"
+                            ],
+                            "scope": "DATASET_SCOPE_USER_DATA"
+                          }
+                        ],
+                        "stackedGroupNameField": {
+                          "keypath": [
+                            "product",
+                            "category"
+                          ],
+                          "scope": "DATASET_SCOPE_USER_DATA"
+                        }
+                      }
+                    },
+                    "sortBy": "SORT_BY_TYPE_VALUE",
+                    "maxBarsPerChart": 10
+                  }
+                }
+              },
+              {
+                "title": "Payments by currency (last hour)",
+                "definition": {
+                  "horizontalBarChart": {
+                    "query": {
+                      "metrics": {
+                        "promqlQuery": "sum by (demo_payment_currency) (increase(demo_payment_transactions_total[1h]))",
+                        "promqlQueryType": "PROM_QL_QUERY_TYPE_INSTANT",
+                        "aggregation": "AGGREGATION_LAST",
+                        "groupNames": [
+                          "demo_payment_currency"
+                        ]
+                      }
+                    },
+                    "sortBy": "SORT_BY_TYPE_VALUE",
+                    "maxBarsPerChart": 10
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "options": {
+          "name": "Customer experience",
+          "description": "What shoppers feel: SLO health, storefront speed, errors they hit, and real-browser web vitals (RUM, load-generator Chrome).",
+          "color": "SECTION_PREDEFINED_COLOR_ORANGE"
+        },
+        "rows": [
+          {
+            "height": 19,
+            "widgets": [
+              {
+                "title": "Checkout success vs 99.5% objective (5 min)",
+                "definition": {
+                  "lineChart": {
+                    "queryDefinitions": [
+                      {
+                        "name": "checkout success",
+                        "seriesNameTemplate": "checkout success",
+                        "unit": "UNIT_PERCENT_ZERO_ONE",
+                        "query": {
+                          "metrics": {
+                            "promqlQuery": "sum(rate(calls_total{service_name=\"checkout\", span_name=\"oteldemo.CheckoutService/PlaceOrder\", span_kind=\"SPAN_KIND_SERVER\", status_code!=\"STATUS_CODE_ERROR\"}[5m])) / sum(rate(calls_total{service_name=\"checkout\", span_name=\"oteldemo.CheckoutService/PlaceOrder\", span_kind=\"SPAN_KIND_SERVER\"}[5m]))"
+                          }
+                        }
+                      },
+                      {
+                        "name": "objective",
+                        "seriesNameTemplate": "objective (99.5%)",
+                        "unit": "UNIT_PERCENT_ZERO_ONE",
+                        "query": {
+                          "metrics": {
+                            "promqlQuery": "vector(0.995)"
+                          }
+                        }
+                      }
+                    ],
+                    "legend": {
+                      "isVisible": true,
+                      "columns": [
+                        "LEGEND_COLUMN_LAST",
+                        "LEGEND_COLUMN_MIN"
+                      ],
+                      "placement": "LEGEND_PLACEMENT_BOTTOM"
+                    }
+                  }
+                }
+              },
+              {
+                "title": "Storefront p95 latency vs 1s objective",
+                "definition": {
+                  "lineChart": {
+                    "queryDefinitions": [
+                      {
+                        "name": "frontend p95",
+                        "seriesNameTemplate": "frontend p95",
+                        "unit": "UNIT_MILLISECONDS",
+                        "query": {
+                          "metrics": {
+                            "promqlQuery": "histogram_quantile(0.95, sum by (le) (rate(duration_ms_bucket{service_name=\"frontend\", span_kind=\"SPAN_KIND_SERVER\"}[5m])))"
+                          }
+                        }
+                      },
+                      {
+                        "name": "objective",
+                        "seriesNameTemplate": "objective (1s)",
+                        "unit": "UNIT_MILLISECONDS",
+                        "query": {
+                          "metrics": {
+                            "promqlQuery": "vector(1000)"
+                          }
+                        }
+                      }
+                    ],
+                    "legend": {
+                      "isVisible": true,
+                      "columns": [
+                        "LEGEND_COLUMN_LAST",
+                        "LEGEND_COLUMN_MAX"
+                      ],
+                      "placement": "LEGEND_PLACEMENT_BOTTOM"
+                    }
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "height": 19,
+            "widgets": [
+              {
+                "title": "Where shoppers hit errors (5xx by route, last hour)",
+                "description": "proxy_requests E2M: 5xx responses at the edge, by normalized route and status",
+                "definition": {
+                  "horizontalBarChart": {
+                    "query": {
+                      "metrics": {
+                        "promqlQuery": "sum by (route, status_code) (sum_over_time(proxy_requests_cx_docs_total{status_code=~\"5..\"}[1h]))",
+                        "promqlQueryType": "PROM_QL_QUERY_TYPE_INSTANT",
+                        "aggregation": "AGGREGATION_LAST",
+                        "groupNames": [
+                          "route"
+                        ],
+                        "stackedGroupName": "status_code"
+                      }
+                    },
+                    "sortBy": "SORT_BY_TYPE_VALUE",
+                    "maxBarsPerChart": 10
+                  }
+                }
+              },
+              {
+                "title": "Web vitals in real browsers (RUM)",
+                "description": "Count of measurements by Core Web Vital and Google's rating (good / needs-improvement / poor)",
+                "definition": {
+                  "horizontalBarChart": {
+                    "query": {
+                      "dataprime": {
+                        "query": "source rum.events | filter $d.event_context.type == 'web-vitals' && $d.web_vitals_context.rating != null | groupby $d.web_vitals_context.name:string as vital, $d.web_vitals_context.rating:string as rating aggregate count() as measurements",
+                        "groupNames": [
+                          "vital"
+                        ],
+                        "stackedGroupName": "rating"
+                      }
+                    },
+                    "sortBy": "SORT_BY_TYPE_NAME",
+                    "maxBarsPerChart": 10
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

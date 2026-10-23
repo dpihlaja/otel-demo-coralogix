@@ -1,0 +1,366 @@
+global:
+  domain: cx498.coralogix.com
+  clusterName: otel-demo-macbook
+  deploymentEnvironmentName: production
+opentelemetry-cluster-collector:
+  presets:
+    kubernetesEvents:
+      enabled: true
+    reduceResourceAttributes:
+      enabled: true
+    kubernetesResources:
+      enabled: true
+    fleetManagement:
+      enabled: true
+      supervisor:
+        enabled: false
+    resourceDetection:
+      enabled: true
+      deploymentEnvironmentName: production
+    clusterMetrics:
+      enabled: true
+    collectorMetrics:
+      enabled: true
+    # Off: the API server's /metrics (apiserver_*, etcd_*, workqueue_*, ...) was ~39k series,
+    # about two thirds of everything, for control-plane internals we don't monitor.
+    kubernetesApiServerMetrics:
+      enabled: false
+  # Coralogix appends "_total" to monotonic counters on ingest, so Prometheus-scraped counters
+  # (already named "..._total") land as "..._total_total". The chart's transform/prometheus
+  # strips the suffix only for the collector's own metrics; do the same for everything else.
+  # Same processor on the agent below.
+  extraConfig:
+    processors:
+      transform/strip_total:
+        error_mode: ignore
+        metric_statements:
+        - context: metric
+          statements:
+          - replace_pattern(metric.name, "_total$", "") where metric.type == METRIC_DATA_TYPE_SUM and metric.is_monotonic == true and resource.attributes["service.name"] != "opentelemetry-collector"
+      # Kubernetes events all arrived as Info, including Warning events (BackOff, Unhealthy,
+      # FailedScheduling, ...). Map the event type to severity so they can be filtered/alerted on.
+      transform/k8s_event_severity:
+        error_mode: ignore
+        log_statements:
+        - context: log
+          statements:
+          - set(severity_number, SEVERITY_NUMBER_WARN) where body["object"]["type"] == "Warning"
+          - set(severity_text, "Warning") where body["object"]["type"] == "Warning"
+    service:
+      pipelines:
+        metrics:
+          processors:
+          - transform/strip_total
+        logs:
+          processors:
+          - transform/k8s_event_severity
+  provider: on_prem
+opentelemetry-agent:
+  presets:
+    hostEntityEvents:
+      enabled: true
+    fleetManagement:
+      enabled: true
+      supervisor:
+        enabled: false
+    spanMetrics:
+      enabled: true
+      histogramBuckets:
+      - 1ms
+      - 4ms
+      - 10ms
+      - 20ms
+      - 50ms
+      - 100ms
+      - 200ms
+      - 500ms
+      - 1s
+      - 2s
+      - 5s
+      # Without these, anything slower than 5s lands in +Inf and p95/p99 flatten at 5000ms.
+      # Envoy's route timeout is 15s, and slow-down failures run 10s+.
+      - 10s
+      - 30s
+      - 60s
+      # Adds http.endpoint ("GET /api/products/:productId") as a span metrics label,
+      # so RED metrics can be split per endpoint.
+      extraDimensions:
+      - name: http.endpoint
+      # Runs on every span before spanmetrics and export.
+      # Gives frontend and frontend-proxy server spans a normalized http.route
+      # ("/api/products/:productId") and http.endpoint ("GET /api/products/:productId").
+      # The route patterns are repeated for logs in extraConfig below; keep them in sync.
+      transformStatements:
+      # 0. Fix spans that skew RED metrics.
+      #    Next.js wraps each request in its own SERVER span (BaseServer.handleRequest) under the
+      #    instrumentation-http SERVER span, so every frontend request counted twice. Demote it.
+      - set(kind, SPAN_KIND_INTERNAL) where resource.attributes["service.name"] == "frontend" and attributes["next.span_type"] == "BaseServer.handleRequest"
+      #    flagd's EventStream is a long-lived stream the server closes every 10 minutes with
+      #    DEADLINE_EXCEEDED by design. Not an error; it was the only "error" in the environment.
+      - set(attributes["flagd.stream.recycled"], true) where IsMatch(name, "EventStream$") and status.code == STATUS_CODE_ERROR
+      - set(status.code, STATUS_CODE_UNSET) where IsMatch(name, "EventStream$") and status.code == STATUS_CODE_ERROR
+      # 1. Seed http.route from whatever each service records.
+      #    frontend-proxy (Envoy): only the full http.url.
+      - set(attributes["http.route"], attributes["http.url"]) where resource.attributes["service.name"] == "frontend-proxy" and attributes["http.route"] == nil and attributes["http.url"] != nil
+      #    frontend: Next.js sets http.route on its own spans ("/api/products/[productId]/index");
+      #    the generic HTTP server span has only http.target.
+      - set(attributes["http.route"], attributes["http.target"]) where resource.attributes["service.name"] == "frontend" and kind == SPAN_KIND_SERVER and attributes["http.route"] == nil and attributes["http.target"] != nil
+      - set(attributes["http.route"], attributes["url.path"]) where resource.attributes["service.name"] == "frontend" and kind == SPAN_KIND_SERVER and attributes["http.route"] == nil and attributes["url.path"] != nil
+      # 2. Normalize.
+      - replace_pattern(attributes["http.route"], "^[a-z]+://[^/]+", "") where IsMatch(resource.attributes["service.name"], "^frontend(-proxy)?$")
+      - replace_pattern(attributes["http.route"], "\\?.*$", "") where IsMatch(resource.attributes["service.name"], "^frontend(-proxy)?$")
+      - replace_pattern(attributes["http.route"], "\\[([^\\]]+)\\]", ":$$1") where IsMatch(resource.attributes["service.name"], "^frontend(-proxy)?$")
+      - replace_pattern(attributes["http.route"], "^(.+)/index$", "$$1") where IsMatch(resource.attributes["service.name"], "^frontend(-proxy)?$")
+      - replace_pattern(attributes["http.route"], "^/index$", "/") where IsMatch(resource.attributes["service.name"], "^frontend(-proxy)?$")
+      - replace_pattern(attributes["http.route"], "(.)/$", "$$1") where IsMatch(resource.attributes["service.name"], "^frontend(-proxy)?$")
+      - replace_pattern(attributes["http.route"], "^/api/products/[A-Z0-9]{10}$", "/api/products/:productId") where IsMatch(resource.attributes["service.name"], "^frontend(-proxy)?$")
+      - replace_pattern(attributes["http.route"], "^/product/[A-Z0-9]{10}$", "/product/:productId") where IsMatch(resource.attributes["service.name"], "^frontend(-proxy)?$")
+      - replace_pattern(attributes["http.route"], "^/images/products/[^/]+$", "/images/products/:image") where IsMatch(resource.attributes["service.name"], "^frontend(-proxy)?$")
+      - replace_pattern(attributes["http.route"], "^/images/[^/]+\\.(png|jpg|svg|webp)$", "/images/:image") where IsMatch(resource.attributes["service.name"], "^frontend(-proxy)?$")
+      - replace_pattern(attributes["http.route"], "^/icons/[^/]+$", "/icons/:icon") where IsMatch(resource.attributes["service.name"], "^frontend(-proxy)?$")
+      - replace_pattern(attributes["http.route"], "^/_next/static/.*$", "/_next/static/*") where IsMatch(resource.attributes["service.name"], "^frontend(-proxy)?$")
+      # 3. http.endpoint = "<METHOD> <route>" (old and new semconv method attributes).
+      - set(attributes["http.endpoint"], Concat([attributes["http.method"], attributes["http.route"]], " ")) where IsMatch(resource.attributes["service.name"], "^frontend(-proxy)?$") and attributes["http.route"] != nil and attributes["http.method"] != nil
+      - set(attributes["http.endpoint"], Concat([attributes["http.request.method"], attributes["http.route"]], " ")) where IsMatch(resource.attributes["service.name"], "^frontend(-proxy)?$") and attributes["http.route"] != nil and attributes["http.endpoint"] == nil and attributes["http.request.method"] != nil
+      # 4. Rename spans that carry no route in their name: Envoy's "ingress", and frontend's
+      #    bare "GET"/"POST" from the generic HTTP instrumentation.
+      - set(attributes["envoy.span_name"], name) where resource.attributes["service.name"] == "frontend-proxy" and name == "ingress"
+      - set(name, attributes["http.endpoint"]) where resource.attributes["service.name"] == "frontend-proxy" and name == "ingress" and attributes["http.endpoint"] != nil
+      - set(name, attributes["http.endpoint"]) where resource.attributes["service.name"] == "frontend" and kind == SPAN_KIND_SERVER and IsMatch(name, "^[A-Z]+$") and attributes["http.endpoint"] != nil
+      # 5. Only the real server span carries http.endpoint, so per-endpoint metrics count once.
+      - delete_key(attributes, "http.endpoint") where resource.attributes["service.name"] == "frontend" and attributes["next.span_type"] == "BaseServer.handleRequest"
+      # 6. One name per gRPC method, whatever the SDK: "oteldemo.CartService/GetCart". Seen:
+      #    "POST /oteldemo.CartService/GetCart" (.NET), "/oteldemo.Recommendation..." (Python),
+      #    "grpc.oteldemo.PaymentService/Charge" (Node), "Currency/Convert" (C++ server).
+      - replace_pattern(name, "^(POST /|/|grpc\\.)(oteldemo\\.\\w+Service/\\w+)$", "$$2") where kind == SPAN_KIND_SERVER or kind == SPAN_KIND_CLIENT
+      - replace_pattern(name, "^Currency/(\\w+)$", "oteldemo.CurrencyService/$$1") where resource.attributes["service.name"] == "currency" and kind == SPAN_KIND_SERVER
+    # Creates the traces/sampled pipeline: spanmetrics and transactions see 100% of spans, only
+    # what's exported as traces is sampled. Its probabilistic sampler is swapped for tail
+    # sampling in config: below.
+    headSampling:
+      enabled: true
+      percentage: 10.0
+    profilesCollection:
+      enabled: true
+    resourceDetection:
+      enabled: true
+      deploymentEnvironmentName: production
+    transactions:
+      enabled: true
+      waitDuration: '30'
+    logsCollection:
+      enabled: true
+      reduceLogAttributes:
+        enabled: true
+    kubeletMetrics:
+      enabled: true
+    collectorMetrics:
+      enabled: true
+    statsdReceiver:
+      enabled: true
+    hostMetrics:
+      enabled: true
+      # Off: ~3.5k per-PID series with no pod mapping (container_* / k8s_pod_* cover that), and
+      # process.command_line (full Java classpaths) broke Coralogix's max label length.
+      process:
+        enabled: false
+    kubernetesExtraMetrics:
+      enabled: true
+      scrapeAll: true
+      perNode: true
+    reduceResourceAttributes:
+      enabled: true
+    coralogixExporter:
+      enabled: true
+      privateKey: ${env:CORALOGIX_PRIVATE_KEY}
+      pipelines:
+      - logs
+      - metrics
+      - traces
+  extraConfig:
+    processors:
+      # High-volume lines with no monitoring value (per hour, before filtering):
+      # - coredns query log (~107k, half of all logs): the load generator's headless Chrome
+      #   resolving external hosts through every cluster search domain. coredns errors are kept.
+      # - "orphaned spans found" (~7k) and "Multiple root spans found in single trace" (~3k) from
+      #   the agent itself: expected, because RUM root spans go straight to Coralogix and never
+      #   pass through this collector.
+      # - storage-provisioner "v1 Endpoints is deprecated" (~3.6k).
+      # - image-provider (nginx) 2xx/3xx access lines: frontend-proxy already logs every one of
+      #   these requests with timing and trace IDs. 4xx/5xx and nginx error lines are kept.
+      filter/noise_logs:
+        error_mode: ignore
+        logs:
+          log_record:
+          # (OTTL strings are Go-quoted: regex backslashes are doubled, \" is a literal quote.)
+          - 'resource.attributes["k8s.container.name"] == "coredns" and IsMatch(body, "^\\[INFO\\] \\S+ - \\d+ \"")'
+          - 'resource.attributes["k8s.namespace.name"] == "coralogix" and IsMatch(body, "\"msg\":\"(orphaned spans found|Multiple root spans found in single trace)\"")'
+          - 'resource.attributes["k8s.container.name"] == "storage-provisioner" and IsMatch(body, "warnings\\.go:\\d+\\] .* is deprecated")'
+          - 'resource.attributes["k8s.container.name"] == "image-provider" and IsMatch(body, "\" [23]\\d\\d \\d+ \"")'
+      # These demo services already send their logs over OTLP (parsed, with service.name and
+      # trace/span IDs); filelog ships the same lines again as raw stdout text. Drop the
+      # filelog copy: it's the one without service.name. Services that only log to stdout
+      # (frontend-proxy, image-provider, agent, ...) aren't listed, so they're kept.
+      # (A filelog exclude list can't be set here: the preset's empty list wins the merge.)
+      filter/duplicate_stdout_logs:
+        error_mode: ignore
+        logs:
+          log_record:
+          - resource.attributes["service.name"] == nil and resource.attributes["k8s.namespace.name"] == "default" and IsMatch(resource.attributes["k8s.container.name"], "^(accounting|ad|cart|email|fraud-detection|frontend|kafka|payment|quote|recommendation|shipping|load-generator)$")
+          # The load generator sends every log twice over OTLP: its locustfile adds a LoggingHandler
+          # to the root logger and LoggingInstrumentor adds another. Keep the copy with code.*.
+          - resource.attributes["service.name"] == "load-generator" and attributes["code.function.name"] == nil
+      # Severity for logs that arrive without one.
+      # - Access logs (Envoy over OTLP, nginx on stdout): 5xx -> ERROR, 4xx -> WARN, rest INFO.
+      #   Field parsing of the Envoy line stays a Coralogix parsing rule (coralogix/parsing-rules.md).
+      # - The agent service (Python) logs to stdout in logging's default "LEVEL:logger:msg" format.
+      transform/log_severity:
+        error_mode: ignore
+        log_statements:
+        - context: log
+          statements:
+          - 'set(severity_number, SEVERITY_NUMBER_ERROR) where severity_number == SEVERITY_NUMBER_UNSPECIFIED and resource.attributes["service.name"] == "frontend-proxy" and IsMatch(body, "^\\[[^\\]]+\\] \"[^\"]*\" 5\\d\\d ")'
+          - 'set(severity_number, SEVERITY_NUMBER_WARN) where severity_number == SEVERITY_NUMBER_UNSPECIFIED and resource.attributes["service.name"] == "frontend-proxy" and IsMatch(body, "^\\[[^\\]]+\\] \"[^\"]*\" 4\\d\\d ")'
+          - 'set(severity_number, SEVERITY_NUMBER_INFO) where severity_number == SEVERITY_NUMBER_UNSPECIFIED and resource.attributes["service.name"] == "frontend-proxy" and IsMatch(body, "^\\[[^\\]]+\\] \"[^\"]*\" \\d{3} ")'
+          - 'set(severity_number, SEVERITY_NUMBER_ERROR) where severity_number == SEVERITY_NUMBER_UNSPECIFIED and resource.attributes["k8s.container.name"] == "image-provider" and IsMatch(body, "\" 5\\d\\d \\d+ \"")'
+          - 'set(severity_number, SEVERITY_NUMBER_WARN) where severity_number == SEVERITY_NUMBER_UNSPECIFIED and resource.attributes["k8s.container.name"] == "image-provider" and IsMatch(body, "\" 4\\d\\d \\d+ \"")'
+          - set(severity_number, SEVERITY_NUMBER_DEBUG) where severity_number == SEVERITY_NUMBER_UNSPECIFIED and resource.attributes["k8s.container.name"] == "agent" and IsMatch(body, "^DEBUG:")
+          - set(severity_number, SEVERITY_NUMBER_INFO) where severity_number == SEVERITY_NUMBER_UNSPECIFIED and resource.attributes["k8s.container.name"] == "agent" and IsMatch(body, "^INFO:")
+          - set(severity_number, SEVERITY_NUMBER_WARN) where severity_number == SEVERITY_NUMBER_UNSPECIFIED and resource.attributes["k8s.container.name"] == "agent" and IsMatch(body, "^WARNING:")
+          - set(severity_number, SEVERITY_NUMBER_ERROR) where severity_number == SEVERITY_NUMBER_UNSPECIFIED and resource.attributes["k8s.container.name"] == "agent" and IsMatch(body, "^ERROR:")
+          - set(severity_number, SEVERITY_NUMBER_FATAL) where severity_number == SEVERITY_NUMBER_UNSPECIFIED and resource.attributes["k8s.container.name"] == "agent" and IsMatch(body, "^CRITICAL:")
+      # Flat keys for Coralogix custom enrichments (coralogix/enrichments.md). An enrichment
+      # field is a dotted path, so it can't address OTel keys that contain dots ("service.name").
+      # - service_name: from service.name, or the container name for stdout-only services
+      # - product_id: from /api/products/<id> and /product/<id> in url.path (Envoy and frontend)
+      transform/enrichment_keys:
+        error_mode: ignore
+        log_statements:
+        - context: log
+          statements:
+          - set(attributes["service_name"], resource.attributes["service.name"]) where resource.attributes["service.name"] != nil
+          - set(attributes["service_name"], resource.attributes["k8s.container.name"]) where attributes["service_name"] == nil and resource.attributes["k8s.namespace.name"] == "default" and resource.attributes["k8s.container.name"] != nil
+          - merge_maps(attributes, ExtractPatterns(attributes["url.path"], "/products?/(?P<product_id>[A-Z0-9]{10})"), "upsert") where attributes["url.path"] != nil and IsMatch(attributes["url.path"], "/products?/[A-Z0-9]{10}")
+      # frontend (pino) and frontend-proxy (Envoy) logs carry url.path but no route. Give them
+      # the same http.route (and http.endpoint where the method is known) as the matching spans,
+      # so logs and traces can be grouped and joined by endpoint, and Events2Metrics can label
+      # by route without per-ID cardinality. Same patterns as transformStatements.
+      transform/http_route_logs:
+        error_mode: ignore
+        log_statements:
+        - context: log
+          statements:
+          - set(attributes["http.route"], attributes["url.path"]) where IsMatch(resource.attributes["service.name"], "^frontend(-proxy)?$") and attributes["http.route"] == nil and attributes["url.path"] != nil
+          - replace_pattern(attributes["http.route"], "\\?.*$", "") where IsMatch(resource.attributes["service.name"], "^frontend(-proxy)?$")
+          - replace_pattern(attributes["http.route"], "(.)/$", "$$1") where IsMatch(resource.attributes["service.name"], "^frontend(-proxy)?$")
+          - replace_pattern(attributes["http.route"], "^/api/products/[A-Z0-9]{10}$", "/api/products/:productId") where IsMatch(resource.attributes["service.name"], "^frontend(-proxy)?$")
+          - replace_pattern(attributes["http.route"], "^/product/[A-Z0-9]{10}$", "/product/:productId") where IsMatch(resource.attributes["service.name"], "^frontend(-proxy)?$")
+          - replace_pattern(attributes["http.route"], "^/images/products/[^/]+$", "/images/products/:image") where IsMatch(resource.attributes["service.name"], "^frontend(-proxy)?$")
+          - replace_pattern(attributes["http.route"], "^/images/[^/]+\\.(png|jpg|svg|webp)$", "/images/:image") where IsMatch(resource.attributes["service.name"], "^frontend(-proxy)?$")
+          - replace_pattern(attributes["http.route"], "^/icons/[^/]+$", "/icons/:icon") where IsMatch(resource.attributes["service.name"], "^frontend(-proxy)?$")
+          - replace_pattern(attributes["http.route"], "^/_next/static/.*$", "/_next/static/*") where IsMatch(resource.attributes["service.name"], "^frontend(-proxy)?$")
+          #   Envoy's url.path is the upstream path after its prefix rewrite (/images/... -> /...).
+          - replace_pattern(attributes["http.route"], "^/products/[^/]+\\.(png|jpg|svg|webp)$", "/images/products/:image") where resource.attributes["service.name"] == "frontend-proxy"
+          - replace_pattern(attributes["http.route"], "^/[^/]+\\.(png|jpg|svg|webp|ico)$", "/images/:image") where resource.attributes["service.name"] == "frontend-proxy"
+          - set(attributes["http.endpoint"], Concat([attributes["http.request.method"], attributes["http.route"]], " ")) where IsMatch(resource.attributes["service.name"], "^frontend(-proxy)?$") and attributes["http.route"] != nil and attributes["http.request.method"] != nil
+      # See the cluster collector's transform/strip_total: avoids "..._total_total" names
+      # (cAdvisor, app Prometheus counters), which APM's pod CPU/OOM panels can't find.
+      transform/strip_total:
+        error_mode: ignore
+        metric_statements:
+        - context: metric
+          statements:
+          - replace_pattern(metric.name, "_total$", "") where metric.type == METRIC_DATA_TYPE_SUM and metric.is_monotonic == true and resource.attributes["service.name"] != "opentelemetry-collector"
+      # Coralogix appends the unit to the metric name, and OTel annotation units ("{transaction}")
+      # turn into names like demo_payment_transactions__transaction__total. Clear them on
+      # application metrics (anything with a service.name) so names stay readable:
+      # demo_payment_transactions_total. Infra metrics (kubelet, cluster, host) are left as
+      # Coralogix's built-in Kubernetes views expect them.
+      transform/app_metric_units:
+        error_mode: ignore
+        metric_statements:
+        - context: metric
+          statements:
+          - set(metric.unit, "") where IsMatch(metric.unit, "^\\{.*\\}$") and resource.attributes["service.name"] != nil and resource.attributes["service.name"] != "opentelemetry-collector"
+    service:
+      pipelines:
+        logs:
+          processors:
+          - filter/duplicate_stdout_logs
+          - filter/noise_logs
+          - transform/log_severity
+          - transform/enrichment_keys
+          - transform/http_route_logs
+        metrics:
+          processors:
+          - transform/strip_total
+          - transform/app_metric_units
+  # Tail sampling instead of the preset's 10% head sampling. Browser (RUM) spans go straight to
+  # Coralogix unsampled, so a random 10% of backend traces left 90% of RUM requests with no
+  # backend half. One node = every span of a trace passes through this agent, so a whole-trace
+  # decision works here. (A multi-node cluster would need the agent to load-balance by trace ID
+  # to a gateway first.) Keep:
+  # - every trace with an error, or slower than 2s
+  # - every trace started by a browser: Envoy's server span carries the browser's user agent
+  # - 10% of the rest (load generator / API traffic)
+  # (extraConfig can't change preset pipelines; config.service.pipelines replaces the list.)
+  config:
+    processors:
+      tail_sampling:
+        decision_wait: 10s
+        num_traces: 50000
+        expected_new_traces_per_sec: 200
+        policies:
+        - name: errors
+          type: status_code
+          status_code:
+            status_codes: [ERROR]
+        - name: slow
+          type: latency
+          latency:
+            threshold_ms: 2000
+        - name: browser
+          type: ottl_condition
+          ottl_condition:
+            error_mode: ignore
+            span:
+            - resource.attributes["service.name"] == "frontend-proxy" and kind == SPAN_KIND_SERVER and attributes["user_agent"] != nil and IsMatch(attributes["user_agent"], "^Mozilla/")
+        - name: baseline
+          type: probabilistic
+          probabilistic:
+            sampling_percentage: 10
+    service:
+      pipelines:
+        traces/sampled:
+          processors:
+          - tail_sampling
+          - batch
+  targetAllocator:
+    enabled: false
+  provider: on_prem
+opentelemetry-ebpf-profiler:
+  presets:
+    otlpExporter:
+      endpoint: ${env:K8S_NODE_IP}:4317
+      pipelines:
+      - profiles
+      tls:
+        insecure: true
+      enabled: true
+    resourceDetection:
+      enabled: true
+    fleetManagement:
+      enabled: true
+      supervisor:
+        enabled: false
+    ebpfProfiler:
+      samplesPerSecond: 20
+  # Off: no local minikube option supports it. Docker driver: the node is a container and the
+  # profiler's kernel self-check fails (nested PID namespace). vfkit driver: the minikube ISO
+  # kernel has no kprobes/ftrace ("load program: invalid argument"). Needs a node with a
+  # standard distro kernel (e.g. k3s on an Ubuntu VM, or managed Kubernetes).
+  enabled: false
+# Every demo service already has OTel SDK instrumentation; eBPF auto-instrumentation only
+# added duplicate spans, IP:port service-map nodes and orphaned-span warnings.
+opentelemetry-ebpf-instrumentation:
+  enabled: false

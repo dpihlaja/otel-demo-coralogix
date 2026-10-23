@@ -1,0 +1,54 @@
+# Values for the opentelemetry-demo chart (release: my-otel-demo).
+# Telemetry goes straight to the Coralogix agent DaemonSet (otel-integration chart),
+# which listens on hostPorts 4317/4318 on every node. The demo's own collector is
+# disabled because its DaemonSet claims the same hostPorts and blocks the agent.
+
+opentelemetry-collector:
+  enabled: false
+
+default:
+  envOverrides:
+    - name: OTEL_COLLECTOR_NAME
+      valueFrom:
+        fieldRef:
+          fieldPath: status.hostIP
+
+components:
+  frontend:
+    # Demo frontend rebuilt with the Coralogix RUM browser SDK (rum/build.sh).
+    # The tag is set by setup.sh (--set components.frontend.imageOverride.tag=...).
+    imageOverride:
+      repository: otel-demo-frontend-rum
+    envOverrides:
+      # Read by pages/_document.tsx and passed to the browser via window.ENV.
+      # CORALOGIX_RUM_APPLICATION / _DOMAIN aren't set here: they're baked into the image from
+      # .env by rum/build.sh, so they always match the uploaded source maps.
+      - name: CORALOGIX_RUM_PUBLIC_KEY
+        valueFrom:
+          secretKeyRef:
+            name: coralogix-rum
+            key: PUBLIC_KEY
+            optional: true
+      - name: CORALOGIX_RUM_ENVIRONMENT
+        value: production
+      # Upstream default is http://localhost:8080/..., which breaks for browsers on other
+      # machines (their own localhost). Relative works from any host.
+      - name: PUBLIC_OTEL_EXPORTER_OTLP_TRACES_ENDPOINT
+        value: /otlp-http/v1/traces
+
+  load-generator:
+    envOverrides:
+      # The locustfile uses the OTLP gRPC exporters, but the chart points it at 4318 (HTTP), so
+      # all its telemetry failed silently. It still sends traceparent, so every API trace it
+      # started arrived in Coralogix without its root span.
+      - name: OTEL_EXPORTER_OTLP_ENDPOINT
+        value: http://$(OTEL_COLLECTOR_NAME):4317
+
+grafana:
+  enabled: false
+jaeger:
+  enabled: false
+opensearch:
+  enabled: false
+prometheus:
+  enabled: false

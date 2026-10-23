@@ -1,0 +1,887 @@
+{
+  "id": "EpGYoQkqLthy2FpVZJ2Y4",
+  "name": "Web and API health",
+  "description": "HTTP and gRPC traffic: volume, errors, latency and payload sizes. Edge HTTP comes from Envoy access logs (proxy_requests Events2Metric, includes request/response bytes); service-level HTTP and gRPC come from span metrics (100% of calls, before trace sampling). gRPC methods are normalized in the collector to 'oteldemo.<Service>/<Method>' whatever the SDK.",
+  "relativeTimeFrame": "10800s",
+  "autoRefresh": "one_minute",
+  "layout": {
+    "sections": [
+      {
+        "options": {
+          "name": "At a glance (last 15 min)",
+          "description": "Edge = what browsers and API clients see at the proxy. gRPC = calls between backend services.",
+          "color": "SECTION_PREDEFINED_COLOR_GREEN"
+        },
+        "rows": [
+          {
+            "height": 12,
+            "widgets": [
+              {
+                "title": "Edge requests/s",
+                "definition": {
+                  "gauge": {
+                    "query": {
+                      "metrics": {
+                        "promqlQuery": "sum(sum_over_time(proxy_requests_cx_docs_total[15m])) / 900",
+                        "aggregation": "AGGREGATION_LAST"
+                      }
+                    },
+                    "min": 0,
+                    "max": 100,
+                    "unit": "UNIT_NUMBER",
+                    "decimal": 1,
+                    "thresholdType": "THRESHOLD_TYPE_ABSOLUTE",
+                    "thresholdBy": "THRESHOLD_BY_BACKGROUND",
+                    "thresholds": [
+                      {
+                        "from": 0,
+                        "color": "green"
+                      }
+                    ],
+                    "arcDisplay": {
+                      "valueArc": false,
+                      "thresholdArc": false
+                    },
+                    "displaySeriesName": false
+                  }
+                }
+              },
+              {
+                "title": "Edge 5xx rate",
+                "definition": {
+                  "gauge": {
+                    "query": {
+                      "metrics": {
+                        "promqlQuery": "(sum(sum_over_time(proxy_requests_cx_docs_total{status_code=~\"5..\"}[15m])) or vector(0)) / sum(sum_over_time(proxy_requests_cx_docs_total[15m]))",
+                        "aggregation": "AGGREGATION_LAST"
+                      }
+                    },
+                    "min": 0,
+                    "max": 0.1,
+                    "unit": "UNIT_PERCENT_ZERO_ONE",
+                    "decimal": 2,
+                    "thresholdType": "THRESHOLD_TYPE_ABSOLUTE",
+                    "thresholdBy": "THRESHOLD_BY_BACKGROUND",
+                    "thresholds": [
+                      {
+                        "from": 0,
+                        "color": "green"
+                      },
+                      {
+                        "from": 0.005,
+                        "color": "orange"
+                      },
+                      {
+                        "from": 0.02,
+                        "color": "red"
+                      }
+                    ],
+                    "arcDisplay": {
+                      "valueArc": false,
+                      "thresholdArc": false
+                    },
+                    "displaySeriesName": false
+                  }
+                }
+              },
+              {
+                "title": "Edge p95 latency",
+                "definition": {
+                  "gauge": {
+                    "query": {
+                      "metrics": {
+                        "promqlQuery": "histogram_quantile(0.95, sum by (le) (sum_over_time(proxy_duration_ms_cx_bucket{route!~\".*EventStream\"}[15m])))",
+                        "aggregation": "AGGREGATION_LAST"
+                      }
+                    },
+                    "min": 0,
+                    "max": 5000,
+                    "unit": "UNIT_MILLISECONDS",
+                    "decimal": 0,
+                    "thresholdType": "THRESHOLD_TYPE_ABSOLUTE",
+                    "thresholdBy": "THRESHOLD_BY_BACKGROUND",
+                    "thresholds": [
+                      {
+                        "from": 0,
+                        "color": "green"
+                      },
+                      {
+                        "from": 1000,
+                        "color": "orange"
+                      },
+                      {
+                        "from": 3000,
+                        "color": "red"
+                      }
+                    ],
+                    "arcDisplay": {
+                      "valueArc": false,
+                      "thresholdArc": false
+                    },
+                    "displaySeriesName": false
+                  }
+                }
+              },
+              {
+                "title": "gRPC calls/s",
+                "definition": {
+                  "gauge": {
+                    "query": {
+                      "metrics": {
+                        "promqlQuery": "sum(rate(calls_total{span_kind=\"SPAN_KIND_SERVER\", span_name=~\"oteldemo[.].+Service/.+\"}[15m]))",
+                        "aggregation": "AGGREGATION_LAST"
+                      }
+                    },
+                    "min": 0,
+                    "max": 100,
+                    "unit": "UNIT_NUMBER",
+                    "decimal": 1,
+                    "thresholdType": "THRESHOLD_TYPE_ABSOLUTE",
+                    "thresholdBy": "THRESHOLD_BY_BACKGROUND",
+                    "thresholds": [
+                      {
+                        "from": 0,
+                        "color": "green"
+                      }
+                    ],
+                    "arcDisplay": {
+                      "valueArc": false,
+                      "thresholdArc": false
+                    },
+                    "displaySeriesName": false
+                  }
+                }
+              },
+              {
+                "title": "gRPC error rate",
+                "definition": {
+                  "gauge": {
+                    "query": {
+                      "metrics": {
+                        "promqlQuery": "(sum(rate(calls_total{span_kind=\"SPAN_KIND_SERVER\", span_name=~\"oteldemo[.].+Service/.+\", status_code=\"STATUS_CODE_ERROR\"}[15m])) or vector(0)) / sum(rate(calls_total{span_kind=\"SPAN_KIND_SERVER\", span_name=~\"oteldemo[.].+Service/.+\"}[15m]))",
+                        "aggregation": "AGGREGATION_LAST"
+                      }
+                    },
+                    "min": 0,
+                    "max": 0.1,
+                    "unit": "UNIT_PERCENT_ZERO_ONE",
+                    "decimal": 2,
+                    "thresholdType": "THRESHOLD_TYPE_ABSOLUTE",
+                    "thresholdBy": "THRESHOLD_BY_BACKGROUND",
+                    "thresholds": [
+                      {
+                        "from": 0,
+                        "color": "green"
+                      },
+                      {
+                        "from": 0.005,
+                        "color": "orange"
+                      },
+                      {
+                        "from": 0.02,
+                        "color": "red"
+                      }
+                    ],
+                    "arcDisplay": {
+                      "valueArc": false,
+                      "thresholdArc": false
+                    },
+                    "displaySeriesName": false
+                  }
+                }
+              },
+              {
+                "title": "gRPC p95 latency",
+                "definition": {
+                  "gauge": {
+                    "query": {
+                      "metrics": {
+                        "promqlQuery": "histogram_quantile(0.95, sum by (le) (rate(duration_ms_bucket{span_kind=\"SPAN_KIND_SERVER\", span_name=~\"oteldemo[.].+Service/.+\"}[15m])))",
+                        "aggregation": "AGGREGATION_LAST"
+                      }
+                    },
+                    "min": 0,
+                    "max": 2000,
+                    "unit": "UNIT_MILLISECONDS",
+                    "decimal": 0,
+                    "thresholdType": "THRESHOLD_TYPE_ABSOLUTE",
+                    "thresholdBy": "THRESHOLD_BY_BACKGROUND",
+                    "thresholds": [
+                      {
+                        "from": 0,
+                        "color": "green"
+                      },
+                      {
+                        "from": 250,
+                        "color": "orange"
+                      },
+                      {
+                        "from": 1000,
+                        "color": "red"
+                      }
+                    ],
+                    "arcDisplay": {
+                      "valueArc": false,
+                      "thresholdArc": false
+                    },
+                    "displaySeriesName": false
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "options": {
+          "name": "HTTP at the edge (Envoy access logs)",
+          "description": "Every request through frontend-proxy, from the parsed Envoy access log. Routes are normalized (no product IDs or query strings). response_flags is Envoy's own failure reason: UT upstream timeout, UF upstream connect failure, URX retry limit, DC client disconnect, DI injected delay. Latency panels leave out flagd's EventStream: a 10-minute streaming connection, not a slow request.",
+          "color": "SECTION_PREDEFINED_COLOR_BLUE"
+        },
+        "rows": [
+          {
+            "height": 19,
+            "widgets": [
+              {
+                "title": "Requests/s by route (top 10)",
+                "definition": {
+                  "lineChart": {
+                    "queryDefinitions": [
+                      {
+                        "name": "requests",
+                        "seriesNameTemplate": "{{route}}",
+                        "query": {
+                          "metrics": {
+                            "promqlQuery": "topk(10, sum by (route) (sum_over_time(proxy_requests_cx_docs_total[5m]))) / 300"
+                          }
+                        }
+                      }
+                    ],
+                    "stackedLine": "STACKED_LINE_ABSOLUTE",
+                    "legend": {
+                      "isVisible": true,
+                      "columns": [
+                        "LEGEND_COLUMN_LAST",
+                        "LEGEND_COLUMN_AVG"
+                      ],
+                      "placement": "LEGEND_PLACEMENT_SIDE"
+                    }
+                  }
+                }
+              },
+              {
+                "title": "Responses/s by status code",
+                "definition": {
+                  "lineChart": {
+                    "queryDefinitions": [
+                      {
+                        "name": "responses",
+                        "seriesNameTemplate": "{{status_code}}",
+                        "query": {
+                          "metrics": {
+                            "promqlQuery": "sum by (status_code) (sum_over_time(proxy_requests_cx_docs_total[5m])) / 300"
+                          }
+                        }
+                      }
+                    ],
+                    "stackedLine": "STACKED_LINE_ABSOLUTE",
+                    "legend": {
+                      "isVisible": true,
+                      "columns": [
+                        "LEGEND_COLUMN_LAST",
+                        "LEGEND_COLUMN_MAX"
+                      ],
+                      "placement": "LEGEND_PLACEMENT_BOTTOM"
+                    }
+                  }
+                }
+              },
+              {
+                "title": "Envoy failure reasons (per s)",
+                "description": "Requests Envoy flagged: UT upstream timeout, UF connect failure, DC client disconnect, DI fault-injected delay",
+                "definition": {
+                  "lineChart": {
+                    "queryDefinitions": [
+                      {
+                        "name": "flags",
+                        "seriesNameTemplate": "{{response_flags}}",
+                        "query": {
+                          "metrics": {
+                            "promqlQuery": "sum by (response_flags) (sum_over_time(proxy_requests_cx_docs_total{response_flags!=\"-\"}[5m])) / 300"
+                          }
+                        }
+                      }
+                    ],
+                    "legend": {
+                      "isVisible": true,
+                      "columns": [
+                        "LEGEND_COLUMN_LAST",
+                        "LEGEND_COLUMN_MAX"
+                      ],
+                      "placement": "LEGEND_PLACEMENT_BOTTOM"
+                    }
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "height": 19,
+            "widgets": [
+              {
+                "title": "p95 latency by route (top 10)",
+                "definition": {
+                  "lineChart": {
+                    "queryDefinitions": [
+                      {
+                        "name": "p95",
+                        "seriesNameTemplate": "{{route}}",
+                        "unit": "UNIT_MILLISECONDS",
+                        "query": {
+                          "metrics": {
+                            "promqlQuery": "topk(10, histogram_quantile(0.95, sum by (route, le) (sum_over_time(proxy_duration_ms_cx_bucket{route!~\".*EventStream\"}[5m]))))"
+                          }
+                        }
+                      }
+                    ],
+                    "legend": {
+                      "isVisible": true,
+                      "columns": [
+                        "LEGEND_COLUMN_LAST",
+                        "LEGEND_COLUMN_MAX"
+                      ],
+                      "placement": "LEGEND_PLACEMENT_SIDE"
+                    }
+                  }
+                }
+              },
+              {
+                "title": "Slowest routes (p95, last hour)",
+                "definition": {
+                  "horizontalBarChart": {
+                    "query": {
+                      "metrics": {
+                        "promqlQuery": "histogram_quantile(0.95, sum by (route, le) (sum_over_time(proxy_duration_ms_cx_bucket{route!~\".*EventStream\"}[1h])))",
+                        "promqlQueryType": "PROM_QL_QUERY_TYPE_INSTANT",
+                        "aggregation": "AGGREGATION_LAST",
+                        "groupNames": [
+                          "route"
+                        ]
+                      }
+                    },
+                    "sortBy": "SORT_BY_TYPE_VALUE",
+                    "maxBarsPerChart": 10
+                  }
+                }
+              },
+              {
+                "title": "4xx/5xx by route (last hour)",
+                "definition": {
+                  "horizontalBarChart": {
+                    "query": {
+                      "metrics": {
+                        "promqlQuery": "sum by (route, status_code) (sum_over_time(proxy_requests_cx_docs_total{status_code=~\"[45]..\"}[1h]))",
+                        "promqlQueryType": "PROM_QL_QUERY_TYPE_INSTANT",
+                        "aggregation": "AGGREGATION_LAST",
+                        "groupNames": [
+                          "route"
+                        ],
+                        "stackedGroupName": "status_code"
+                      }
+                    },
+                    "sortBy": "SORT_BY_TYPE_VALUE",
+                    "maxBarsPerChart": 10
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "height": 19,
+            "widgets": [
+              {
+                "title": "Response size p50 / p95",
+                "definition": {
+                  "lineChart": {
+                    "queryDefinitions": [
+                      {
+                        "name": "p50",
+                        "seriesNameTemplate": "p50",
+                        "unit": "UNIT_BYTES_IEC",
+                        "query": {
+                          "metrics": {
+                            "promqlQuery": "histogram_quantile(0.5, sum by (le) (sum_over_time(proxy_bytes_sent_cx_bucket[5m])))"
+                          }
+                        }
+                      },
+                      {
+                        "name": "p95",
+                        "seriesNameTemplate": "p95",
+                        "unit": "UNIT_BYTES_IEC",
+                        "query": {
+                          "metrics": {
+                            "promqlQuery": "histogram_quantile(0.95, sum by (le) (sum_over_time(proxy_bytes_sent_cx_bucket[5m])))"
+                          }
+                        }
+                      }
+                    ],
+                    "legend": {
+                      "isVisible": true,
+                      "columns": [
+                        "LEGEND_COLUMN_LAST",
+                        "LEGEND_COLUMN_MAX"
+                      ],
+                      "placement": "LEGEND_PLACEMENT_BOTTOM"
+                    }
+                  }
+                }
+              },
+              {
+                "title": "Average response size by route (top 10)",
+                "definition": {
+                  "lineChart": {
+                    "queryDefinitions": [
+                      {
+                        "name": "avg response",
+                        "seriesNameTemplate": "{{route}}",
+                        "unit": "UNIT_BYTES_IEC",
+                        "query": {
+                          "metrics": {
+                            "promqlQuery": "topk(10, sum by (route) (sum_over_time(proxy_bytes_sent_cx_sum[5m])) / sum by (route) (sum_over_time(proxy_requests_cx_docs_total[5m])))"
+                          }
+                        }
+                      }
+                    ],
+                    "legend": {
+                      "isVisible": true,
+                      "columns": [
+                        "LEGEND_COLUMN_LAST",
+                        "LEGEND_COLUMN_MAX"
+                      ],
+                      "placement": "LEGEND_PLACEMENT_SIDE"
+                    }
+                  }
+                }
+              },
+              {
+                "title": "Average request body by route (POST)",
+                "definition": {
+                  "lineChart": {
+                    "queryDefinitions": [
+                      {
+                        "name": "avg request",
+                        "seriesNameTemplate": "{{route}}",
+                        "unit": "UNIT_BYTES_IEC",
+                        "query": {
+                          "metrics": {
+                            "promqlQuery": "sum by (route) (sum_over_time(proxy_bytes_received_cx_sum{method=\"POST\"}[5m])) / sum by (route) (sum_over_time(proxy_requests_cx_docs_total{method=\"POST\"}[5m]))"
+                          }
+                        }
+                      }
+                    ],
+                    "legend": {
+                      "isVisible": true,
+                      "columns": [
+                        "LEGEND_COLUMN_LAST",
+                        "LEGEND_COLUMN_MAX"
+                      ],
+                      "placement": "LEGEND_PLACEMENT_BOTTOM"
+                    }
+                  }
+                }
+              },
+              {
+                "title": "Edge bandwidth (bytes/s)",
+                "definition": {
+                  "lineChart": {
+                    "queryDefinitions": [
+                      {
+                        "name": "out (responses)",
+                        "seriesNameTemplate": "out (responses)",
+                        "unit": "UNIT_BYTES_IEC",
+                        "query": {
+                          "metrics": {
+                            "promqlQuery": "sum(sum_over_time(proxy_bytes_sent_cx_sum[5m])) / 300"
+                          }
+                        }
+                      },
+                      {
+                        "name": "in (requests)",
+                        "seriesNameTemplate": "in (requests)",
+                        "unit": "UNIT_BYTES_IEC",
+                        "query": {
+                          "metrics": {
+                            "promqlQuery": "sum(sum_over_time(proxy_bytes_received_cx_sum[5m])) / 300"
+                          }
+                        }
+                      }
+                    ],
+                    "legend": {
+                      "isVisible": true,
+                      "columns": [
+                        "LEGEND_COLUMN_LAST",
+                        "LEGEND_COLUMN_MAX"
+                      ],
+                      "placement": "LEGEND_PLACEMENT_BOTTOM"
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "options": {
+          "name": "HTTP services (span metrics)",
+          "description": "HTTP server spans of every service, gRPC excluded. Includes internal HTTP hops (shipping, quote, email, flagd) the edge never sees.",
+          "color": "SECTION_PREDEFINED_COLOR_PURPLE"
+        },
+        "rows": [
+          {
+            "height": 19,
+            "widgets": [
+              {
+                "title": "Requests/s by service",
+                "definition": {
+                  "lineChart": {
+                    "queryDefinitions": [
+                      {
+                        "name": "requests",
+                        "seriesNameTemplate": "{{service_name}}",
+                        "query": {
+                          "metrics": {
+                            "promqlQuery": "sum by (service_name) (rate(calls_total{span_kind=\"SPAN_KIND_SERVER\", http_response_status_code!=\"\", span_name!~\"oteldemo[.].+Service/.+\"}[5m]))"
+                          }
+                        }
+                      }
+                    ],
+                    "legend": {
+                      "isVisible": true,
+                      "columns": [
+                        "LEGEND_COLUMN_LAST",
+                        "LEGEND_COLUMN_AVG"
+                      ],
+                      "placement": "LEGEND_PLACEMENT_SIDE"
+                    }
+                  }
+                }
+              },
+              {
+                "title": "4xx/5xx by service (per s)",
+                "definition": {
+                  "lineChart": {
+                    "queryDefinitions": [
+                      {
+                        "name": "errors",
+                        "seriesNameTemplate": "{{service_name}} {{http_response_status_code}}",
+                        "query": {
+                          "metrics": {
+                            "promqlQuery": "sum by (service_name, http_response_status_code) (rate(calls_total{span_kind=\"SPAN_KIND_SERVER\", http_response_status_code=~\"[45]..\"}[5m]))"
+                          }
+                        }
+                      }
+                    ],
+                    "legend": {
+                      "isVisible": true,
+                      "columns": [
+                        "LEGEND_COLUMN_LAST",
+                        "LEGEND_COLUMN_MAX"
+                      ],
+                      "placement": "LEGEND_PLACEMENT_BOTTOM"
+                    }
+                  }
+                }
+              },
+              {
+                "title": "p95 latency by service",
+                "definition": {
+                  "lineChart": {
+                    "queryDefinitions": [
+                      {
+                        "name": "p95",
+                        "seriesNameTemplate": "{{service_name}}",
+                        "unit": "UNIT_MILLISECONDS",
+                        "query": {
+                          "metrics": {
+                            "promqlQuery": "histogram_quantile(0.95, sum by (service_name, le) (rate(duration_ms_bucket{span_kind=\"SPAN_KIND_SERVER\", http_response_status_code!=\"\", span_name!~\"oteldemo[.].+Service/.+\"}[5m])))"
+                          }
+                        }
+                      }
+                    ],
+                    "legend": {
+                      "isVisible": true,
+                      "columns": [
+                        "LEGEND_COLUMN_LAST",
+                        "LEGEND_COLUMN_MAX"
+                      ],
+                      "placement": "LEGEND_PLACEMENT_SIDE"
+                    }
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "height": 19,
+            "widgets": [
+              {
+                "title": "Frontend p95 by endpoint (top 10)",
+                "definition": {
+                  "lineChart": {
+                    "queryDefinitions": [
+                      {
+                        "name": "p95",
+                        "seriesNameTemplate": "{{http_endpoint}}",
+                        "unit": "UNIT_MILLISECONDS",
+                        "query": {
+                          "metrics": {
+                            "promqlQuery": "topk(10, histogram_quantile(0.95, sum by (http_endpoint, le) (rate(duration_ms_bucket{service_name=\"frontend\", span_kind=\"SPAN_KIND_SERVER\", http_endpoint!=\"\"}[5m]))))"
+                          }
+                        }
+                      }
+                    ],
+                    "legend": {
+                      "isVisible": true,
+                      "columns": [
+                        "LEGEND_COLUMN_LAST",
+                        "LEGEND_COLUMN_MAX"
+                      ],
+                      "placement": "LEGEND_PLACEMENT_SIDE"
+                    }
+                  }
+                }
+              },
+              {
+                "title": "Frontend calls by endpoint (last hour)",
+                "definition": {
+                  "horizontalBarChart": {
+                    "query": {
+                      "metrics": {
+                        "promqlQuery": "sum by (http_endpoint) (increase(calls_total{service_name=\"frontend\", span_kind=\"SPAN_KIND_SERVER\", http_endpoint!=\"\"}[1h]))",
+                        "promqlQueryType": "PROM_QL_QUERY_TYPE_INSTANT",
+                        "aggregation": "AGGREGATION_LAST",
+                        "groupNames": [
+                          "http_endpoint"
+                        ]
+                      }
+                    },
+                    "sortBy": "SORT_BY_TYPE_VALUE",
+                    "maxBarsPerChart": 12
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "options": {
+          "name": "gRPC services (span metrics)",
+          "description": "Server side of every gRPC method, plus failed outbound calls by caller. Errors are span status (the grpc status code label is only reported by some SDKs).",
+          "color": "SECTION_PREDEFINED_COLOR_ORANGE"
+        },
+        "rows": [
+          {
+            "height": 19,
+            "widgets": [
+              {
+                "title": "Calls/s by method",
+                "definition": {
+                  "lineChart": {
+                    "queryDefinitions": [
+                      {
+                        "name": "calls",
+                        "seriesNameTemplate": "{{span_name}}",
+                        "query": {
+                          "metrics": {
+                            "promqlQuery": "sum by (span_name) (rate(calls_total{span_kind=\"SPAN_KIND_SERVER\", span_name=~\"oteldemo[.].+Service/.+\"}[5m]))"
+                          }
+                        }
+                      }
+                    ],
+                    "legend": {
+                      "isVisible": true,
+                      "columns": [
+                        "LEGEND_COLUMN_LAST",
+                        "LEGEND_COLUMN_AVG"
+                      ],
+                      "placement": "LEGEND_PLACEMENT_SIDE"
+                    }
+                  }
+                }
+              },
+              {
+                "title": "Error rate by method",
+                "definition": {
+                  "lineChart": {
+                    "queryDefinitions": [
+                      {
+                        "name": "error rate",
+                        "seriesNameTemplate": "{{span_name}}",
+                        "unit": "UNIT_PERCENT_ZERO_ONE",
+                        "query": {
+                          "metrics": {
+                            "promqlQuery": "sum by (span_name) (rate(calls_total{span_kind=\"SPAN_KIND_SERVER\", span_name=~\"oteldemo[.].+Service/.+\", status_code=\"STATUS_CODE_ERROR\"}[5m])) / sum by (span_name) (rate(calls_total{span_kind=\"SPAN_KIND_SERVER\", span_name=~\"oteldemo[.].+Service/.+\"}[5m]))"
+                          }
+                        }
+                      }
+                    ],
+                    "legend": {
+                      "isVisible": true,
+                      "columns": [
+                        "LEGEND_COLUMN_LAST",
+                        "LEGEND_COLUMN_MAX"
+                      ],
+                      "placement": "LEGEND_PLACEMENT_BOTTOM"
+                    }
+                  }
+                }
+              },
+              {
+                "title": "p95 latency by method",
+                "definition": {
+                  "lineChart": {
+                    "queryDefinitions": [
+                      {
+                        "name": "p95",
+                        "seriesNameTemplate": "{{span_name}}",
+                        "unit": "UNIT_MILLISECONDS",
+                        "query": {
+                          "metrics": {
+                            "promqlQuery": "histogram_quantile(0.95, sum by (span_name, le) (rate(duration_ms_bucket{span_kind=\"SPAN_KIND_SERVER\", span_name=~\"oteldemo[.].+Service/.+\"}[5m])))"
+                          }
+                        }
+                      }
+                    ],
+                    "legend": {
+                      "isVisible": true,
+                      "columns": [
+                        "LEGEND_COLUMN_LAST",
+                        "LEGEND_COLUMN_MAX"
+                      ],
+                      "placement": "LEGEND_PLACEMENT_SIDE"
+                    }
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "height": 19,
+            "widgets": [
+              {
+                "title": "Failed outbound gRPC calls (caller → method, per s)",
+                "description": "Client-side view: which service saw which dependency fail",
+                "definition": {
+                  "lineChart": {
+                    "queryDefinitions": [
+                      {
+                        "name": "failed",
+                        "seriesNameTemplate": "{{service_name}} → {{span_name}}",
+                        "query": {
+                          "metrics": {
+                            "promqlQuery": "sum by (service_name, span_name) (rate(calls_total{span_kind=\"SPAN_KIND_CLIENT\", span_name=~\"oteldemo[.].+Service/.+\", status_code=\"STATUS_CODE_ERROR\"}[5m]))"
+                          }
+                        }
+                      }
+                    ],
+                    "legend": {
+                      "isVisible": true,
+                      "columns": [
+                        "LEGEND_COLUMN_LAST",
+                        "LEGEND_COLUMN_MAX"
+                      ],
+                      "placement": "LEGEND_PLACEMENT_BOTTOM"
+                    }
+                  }
+                }
+              },
+              {
+                "title": "Busiest methods (calls, last hour)",
+                "definition": {
+                  "horizontalBarChart": {
+                    "query": {
+                      "metrics": {
+                        "promqlQuery": "sum by (span_name) (increase(calls_total{span_kind=\"SPAN_KIND_SERVER\", span_name=~\"oteldemo[.].+Service/.+\"}[1h]))",
+                        "promqlQueryType": "PROM_QL_QUERY_TYPE_INSTANT",
+                        "aggregation": "AGGREGATION_LAST",
+                        "groupNames": [
+                          "span_name"
+                        ]
+                      }
+                    },
+                    "sortBy": "SORT_BY_TYPE_VALUE",
+                    "maxBarsPerChart": 12
+                  }
+                }
+              },
+              {
+                "title": "Slowest methods (p95, last hour)",
+                "definition": {
+                  "horizontalBarChart": {
+                    "query": {
+                      "metrics": {
+                        "promqlQuery": "histogram_quantile(0.95, sum by (span_name, le) (increase(duration_ms_bucket{span_kind=\"SPAN_KIND_SERVER\", span_name=~\"oteldemo[.].+Service/.+\"}[1h])))",
+                        "promqlQueryType": "PROM_QL_QUERY_TYPE_INSTANT",
+                        "aggregation": "AGGREGATION_LAST",
+                        "groupNames": [
+                          "span_name"
+                        ]
+                      }
+                    },
+                    "sortBy": "SORT_BY_TYPE_VALUE",
+                    "maxBarsPerChart": 12
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "height": 19,
+            "widgets": [
+              {
+                "title": "gRPC message size: AdService/GetAds (only instrumented service)",
+                "description": "Only the Java agent (ad) records gRPC message sizes; the Go, .NET, Node, Python and C++ SDKs in this demo don't. Edge HTTP sizes above cover all browser/API traffic.",
+                "definition": {
+                  "lineChart": {
+                    "queryDefinitions": [
+                      {
+                        "name": "request",
+                        "seriesNameTemplate": "request (avg)",
+                        "unit": "UNIT_BYTES_IEC",
+                        "query": {
+                          "metrics": {
+                            "promqlQuery": "sum(rate(rpc_server_request_size_By_sum{rpc_service=\"oteldemo.AdService\"}[5m])) / sum(rate(rpc_server_request_size_By_count{rpc_service=\"oteldemo.AdService\"}[5m]))"
+                          }
+                        }
+                      },
+                      {
+                        "name": "response",
+                        "seriesNameTemplate": "response (avg)",
+                        "unit": "UNIT_BYTES_IEC",
+                        "query": {
+                          "metrics": {
+                            "promqlQuery": "sum(rate(rpc_server_response_size_By_sum{rpc_service=\"oteldemo.AdService\"}[5m])) / sum(rate(rpc_server_response_size_By_count{rpc_service=\"oteldemo.AdService\"}[5m]))"
+                          }
+                        }
+                      }
+                    ],
+                    "legend": {
+                      "isVisible": true,
+                      "columns": [
+                        "LEGEND_COLUMN_LAST",
+                        "LEGEND_COLUMN_MAX"
+                      ],
+                      "placement": "LEGEND_PLACEMENT_BOTTOM"
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}
