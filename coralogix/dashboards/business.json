@@ -1,7 +1,7 @@
 {
   "id": "lVBBrXTKXPJxtIowPSaoj",
-  "name": "Business health",
-  "description": "Are shoppers buying, and if not, where are they dropping off? Orders and revenue (Events2Metrics on checkout logs), the shopper funnel (span metrics), product interest (logs enriched with the product catalog), payments, and customer experience (SLOs, latency, RUM web vitals). Revenue mixes USD and CAD: the order log carries no currency.",
+  "name": "Business",
+  "description": "Are we selling, and if not, where are shoppers dropping off? Orders and revenue (Events2Metrics on checkout logs), the shopper funnel (span metrics), product interest (logs enriched with the product catalog), payments, and customer experience (SLOs, latency, RUM web vitals). Revenue mixes USD and CAD: the order log carries no currency.",
   "relativeTimeFrame": "10800s",
   "autoRefresh": "one_minute",
   "layout": {

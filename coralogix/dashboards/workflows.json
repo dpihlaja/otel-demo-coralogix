@@ -1,0 +1,443 @@
+{
+  "id": "pbJSJ5KjkrgfW7cMhxPf2",
+  "name": "Workflows",
+  "description": "Does async work finish? The Kafka 'orders' topic: checkout publishes every placed order; accounting and fraud-detection consume it. Counts and durations are span metrics (100% of messages, before trace sampling). Lag and broker health are Kafka's own metrics. Message age (publish to consume) isn't here: it needs span links, which dashboard queries can't read (the query is in coralogix/alerts.md).",
+  "relativeTimeFrame": "10800s",
+  "autoRefresh": "one_minute",
+  "layout": {
+    "sections": [
+      {
+        "options": {
+          "name": "Four signals",
+          "description": "Left to right: errors, latency, saturation, throughput, for the last hour of the selected range. Green = every published order was consumed, quickly and without errors.",
+          "color": "SECTION_PREDEFINED_COLOR_GREEN"
+        },
+        "rows": [
+          {
+            "height": 12,
+            "widgets": [
+              {
+                "title": "Errors \u00b7 Consumer errors (1h)",
+                "definition": {
+                  "gauge": {
+                    "query": {
+                      "metrics": {
+                        "promqlQuery": "sum(increase(calls_total{span_kind=\"SPAN_KIND_CONSUMER\", span_name=~\"orders .+\", status_code=\"STATUS_CODE_ERROR\"}[1h])) or vector(0)",
+                        "aggregation": "AGGREGATION_LAST"
+                      }
+                    },
+                    "min": 0,
+                    "max": 50,
+                    "unit": "UNIT_NUMBER",
+                    "decimal": 0,
+                    "thresholdType": "THRESHOLD_TYPE_ABSOLUTE",
+                    "thresholdBy": "THRESHOLD_BY_BACKGROUND",
+                    "thresholds": [
+                      {
+                        "from": 0,
+                        "color": "green"
+                      },
+                      {
+                        "from": 1,
+                        "color": "orange"
+                      },
+                      {
+                        "from": 10,
+                        "color": "red"
+                      }
+                    ],
+                    "arcDisplay": {
+                      "valueArc": false,
+                      "thresholdArc": false
+                    },
+                    "displaySeriesName": false
+                  }
+                },
+                "description": "Failed receive/process spans in accounting and fraud-detection"
+              },
+              {
+                "title": "Latency \u00b7 Consumer p95",
+                "definition": {
+                  "gauge": {
+                    "query": {
+                      "metrics": {
+                        "promqlQuery": "histogram_quantile(0.95, sum by (le) (rate(duration_ms_bucket{span_kind=\"SPAN_KIND_CONSUMER\", span_name=~\"orders .+\"}[1h])))",
+                        "aggregation": "AGGREGATION_LAST"
+                      }
+                    },
+                    "min": 0,
+                    "max": 2000,
+                    "unit": "UNIT_MILLISECONDS",
+                    "decimal": 0,
+                    "thresholdType": "THRESHOLD_TYPE_ABSOLUTE",
+                    "thresholdBy": "THRESHOLD_BY_BACKGROUND",
+                    "thresholds": [
+                      {
+                        "from": 0,
+                        "color": "green"
+                      },
+                      {
+                        "from": 250,
+                        "color": "orange"
+                      },
+                      {
+                        "from": 1000,
+                        "color": "red"
+                      }
+                    ],
+                    "arcDisplay": {
+                      "valueArc": false,
+                      "thresholdArc": false
+                    },
+                    "displaySeriesName": false
+                  }
+                },
+                "description": "Time spent in the consumers' receive and process spans"
+              },
+              {
+                "title": "Saturation \u00b7 Consumer lag",
+                "definition": {
+                  "gauge": {
+                    "query": {
+                      "metrics": {
+                        "promqlQuery": "max(max_over_time(kafka_consumer_records_lag_max[5m])) or vector(0)",
+                        "aggregation": "AGGREGATION_LAST"
+                      }
+                    },
+                    "min": 0,
+                    "max": 200,
+                    "unit": "UNIT_NUMBER",
+                    "decimal": 0,
+                    "thresholdType": "THRESHOLD_TYPE_ABSOLUTE",
+                    "thresholdBy": "THRESHOLD_BY_BACKGROUND",
+                    "thresholds": [
+                      {
+                        "from": 0,
+                        "color": "green"
+                      },
+                      {
+                        "from": 10,
+                        "color": "orange"
+                      },
+                      {
+                        "from": 100,
+                        "color": "red"
+                      }
+                    ],
+                    "arcDisplay": {
+                      "valueArc": false,
+                      "thresholdArc": false
+                    },
+                    "displaySeriesName": false
+                  }
+                },
+                "description": "Records waiting to be read (max over partitions). Only fraud-detection's Java client reports it"
+              },
+              {
+                "title": "Saturation \u00b7 Unconsumed orders (1h)",
+                "definition": {
+                  "gauge": {
+                    "query": {
+                      "metrics": {
+                        "promqlQuery": "clamp_min(sum(increase(calls_total{service_name=\"checkout\", span_kind=\"SPAN_KIND_PRODUCER\", span_name=\"orders publish\"}[1h])) - min(sum by (service_name) (increase(calls_total{span_kind=\"SPAN_KIND_CONSUMER\", span_name=\"orders receive\"}[1h]))), 0)",
+                        "aggregation": "AGGREGATION_LAST"
+                      }
+                    },
+                    "min": 0,
+                    "max": 100,
+                    "unit": "UNIT_NUMBER",
+                    "decimal": 0,
+                    "thresholdType": "THRESHOLD_TYPE_ABSOLUTE",
+                    "thresholdBy": "THRESHOLD_BY_BACKGROUND",
+                    "thresholds": [
+                      {
+                        "from": 0,
+                        "color": "green"
+                      },
+                      {
+                        "from": 5,
+                        "color": "orange"
+                      },
+                      {
+                        "from": 50,
+                        "color": "red"
+                      }
+                    ],
+                    "arcDisplay": {
+                      "valueArc": false,
+                      "thresholdArc": false
+                    },
+                    "displaySeriesName": false
+                  }
+                },
+                "description": "Orders published minus orders received by the slowest consumer group"
+              },
+              {
+                "title": "Throughput \u00b7 Orders published/min",
+                "definition": {
+                  "gauge": {
+                    "query": {
+                      "metrics": {
+                        "promqlQuery": "sum(rate(calls_total{service_name=\"checkout\", span_kind=\"SPAN_KIND_PRODUCER\", span_name=\"orders publish\"}[15m])) * 60",
+                        "aggregation": "AGGREGATION_LAST"
+                      }
+                    },
+                    "min": 0,
+                    "max": 10,
+                    "unit": "UNIT_NUMBER",
+                    "decimal": 1,
+                    "thresholdType": "THRESHOLD_TYPE_ABSOLUTE",
+                    "thresholdBy": "THRESHOLD_BY_BACKGROUND",
+                    "thresholds": [
+                      {
+                        "from": 0,
+                        "color": "green"
+                      }
+                    ],
+                    "arcDisplay": {
+                      "valueArc": false,
+                      "thresholdArc": false
+                    },
+                    "displaySeriesName": false
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "options": {
+          "name": "Order flow",
+          "description": "Published and consumed should move together. A consumer line falling behind the published line, or lag climbing, means orders are processed late.",
+          "color": "SECTION_PREDEFINED_COLOR_BLUE"
+        },
+        "rows": [
+          {
+            "height": 19,
+            "widgets": [
+              {
+                "title": "Published vs consumed (per min)",
+                "definition": {
+                  "lineChart": {
+                    "queryDefinitions": [
+                      {
+                        "name": "published",
+                        "seriesNameTemplate": "published (checkout)",
+                        "query": {
+                          "metrics": {
+                            "promqlQuery": "sum(rate(calls_total{service_name=\"checkout\", span_kind=\"SPAN_KIND_PRODUCER\", span_name=\"orders publish\"}[5m])) * 60"
+                          }
+                        },
+                        "colorScheme": "green"
+                      },
+                      {
+                        "name": "consumed",
+                        "seriesNameTemplate": "consumed by {{service_name}}",
+                        "query": {
+                          "metrics": {
+                            "promqlQuery": "sum by (service_name) (rate(calls_total{span_kind=\"SPAN_KIND_CONSUMER\", span_name=\"orders receive\"}[5m])) * 60"
+                          }
+                        },
+                        "colorScheme": "cold"
+                      }
+                    ],
+                    "legend": {
+                      "isVisible": true,
+                      "columns": [
+                        "LEGEND_COLUMN_LAST",
+                        "LEGEND_COLUMN_MAX"
+                      ],
+                      "placement": "LEGEND_PLACEMENT_BOTTOM"
+                    }
+                  }
+                }
+              },
+              {
+                "title": "Consumer lag (max records)",
+                "definition": {
+                  "lineChart": {
+                    "queryDefinitions": [
+                      {
+                        "name": "lag",
+                        "query": {
+                          "metrics": {
+                            "promqlQuery": "max by (service_name) (kafka_consumer_records_lag_max)"
+                          }
+                        },
+                        "seriesNameTemplate": "{{service_name}}"
+                      }
+                    ],
+                    "legend": {
+                      "isVisible": true,
+                      "columns": [
+                        "LEGEND_COLUMN_LAST",
+                        "LEGEND_COLUMN_MAX"
+                      ],
+                      "placement": "LEGEND_PLACEMENT_BOTTOM"
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "options": {
+          "name": "Consumers",
+          "description": "accounting (.NET) writes orders to the ledger; fraud-detection (Kotlin) checks them. Both read every order.",
+          "color": "SECTION_PREDEFINED_COLOR_PURPLE"
+        },
+        "rows": [
+          {
+            "height": 19,
+            "widgets": [
+              {
+                "title": "Consumer p95 by service and step",
+                "definition": {
+                  "lineChart": {
+                    "queryDefinitions": [
+                      {
+                        "name": "p95",
+                        "seriesNameTemplate": "{{service_name}} {{span_name}}",
+                        "query": {
+                          "metrics": {
+                            "promqlQuery": "histogram_quantile(0.95, sum by (service_name, span_name, le) (rate(duration_ms_bucket{span_kind=\"SPAN_KIND_CONSUMER\", span_name=~\"orders .+\"}[5m])))"
+                          }
+                        },
+                        "unit": "UNIT_MILLISECONDS"
+                      }
+                    ],
+                    "legend": {
+                      "isVisible": true,
+                      "columns": [
+                        "LEGEND_COLUMN_LAST",
+                        "LEGEND_COLUMN_MAX"
+                      ],
+                      "placement": "LEGEND_PLACEMENT_BOTTOM"
+                    }
+                  }
+                }
+              },
+              {
+                "title": "Consumer errors (per 5 min)",
+                "definition": {
+                  "lineChart": {
+                    "queryDefinitions": [
+                      {
+                        "name": "errors",
+                        "seriesNameTemplate": "{{service_name}}",
+                        "query": {
+                          "metrics": {
+                            "promqlQuery": "sum by (service_name) (increase(calls_total{span_kind=\"SPAN_KIND_CONSUMER\", span_name=~\"orders .+\", status_code=\"STATUS_CODE_ERROR\"}[5m]))"
+                          }
+                        },
+                        "colorScheme": "red"
+                      }
+                    ],
+                    "legend": {
+                      "isVisible": true,
+                      "columns": [
+                        "LEGEND_COLUMN_LAST",
+                        "LEGEND_COLUMN_MAX"
+                      ],
+                      "placement": "LEGEND_PLACEMENT_BOTTOM"
+                    },
+                    "stackedLine": "STACKED_LINE_ABSOLUTE"
+                  }
+                }
+              },
+              {
+                "title": "Recent warnings and errors (consumers and Kafka)",
+                "definition": {
+                  "dataTable": {
+                    "query": {
+                      "dataprime": {
+                        "query": "source logs | filter $l.subsystemName.in('accounting', 'fraud-detection', 'kafka') && ($m.severity == WARNING || $m.severity == ERROR || $m.severity == CRITICAL) | orderby $m.timestamp desc | limit 50 | choose formatTimestamp($m.timestamp:timestamp, '%H:%M:%S') as time_utc, $l.subsystemName as service, $m.severity:string as severity, $d.message as message"
+                      }
+                    },
+                    "resultsPerPage": 10,
+                    "rowStyle": "ROW_STYLE_ONE_LINE",
+                    "columns": [
+                      {
+                        "field": "time_utc"
+                      },
+                      {
+                        "field": "service"
+                      },
+                      {
+                        "field": "severity"
+                      },
+                      {
+                        "field": "message"
+                      }
+                    ]
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "options": {
+          "name": "Kafka broker",
+          "description": "The broker itself. Failed requests or unhealthy partitions affect every consumer at once.",
+          "color": "SECTION_PREDEFINED_COLOR_CYAN"
+        },
+        "rows": [
+          {
+            "height": 19,
+            "widgets": [
+              {
+                "title": "Broker failed requests / partitions unhealthy",
+                "definition": {
+                  "lineChart": {
+                    "queryDefinitions": [
+                      {
+                        "name": "failed requests/s",
+                        "query": {
+                          "metrics": {
+                            "promqlQuery": "sum(rate(kafka_request_failed_total[5m]))"
+                          }
+                        },
+                        "seriesNameTemplate": "failed requests/s"
+                      },
+                      {
+                        "name": "under-replicated partitions",
+                        "query": {
+                          "metrics": {
+                            "promqlQuery": "sum(kafka_partition_underReplicated)"
+                          }
+                        },
+                        "seriesNameTemplate": "under-replicated partitions"
+                      },
+                      {
+                        "name": "offline partitions",
+                        "query": {
+                          "metrics": {
+                            "promqlQuery": "sum(kafka_partition_offline)"
+                          }
+                        },
+                        "seriesNameTemplate": "offline partitions"
+                      }
+                    ],
+                    "legend": {
+                      "isVisible": true,
+                      "columns": [
+                        "LEGEND_COLUMN_LAST",
+                        "LEGEND_COLUMN_MAX"
+                      ],
+                      "placement": "LEGEND_PLACEMENT_BOTTOM"
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

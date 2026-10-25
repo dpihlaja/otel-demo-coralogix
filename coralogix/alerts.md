@@ -63,6 +63,20 @@ Notes:
     aggregate sum(if($d.network_request_context.status_code:number >= 400, 1, 0)) as failed, count() as total
   | filter total >= 10 | create failure_rate from failed / total
   ```
+- **Order message age** (the Workflows next step) needs the same DataPrime alerts, and it can't be a
+  dashboard widget either: dashboard queries can't read span links. It works in Explore and the API.
+  It pairs each accounting receive span with its checkout publish span through the FOLLOWS_FROM
+  link (sampled traces only); on 2026-10-22 p50 was ~10 ms, p95 ~50 ms:
+
+  ```
+  source spans | filter ($l.serviceName == 'accounting' && $l.operationName == 'orders receive') || ($l.serviceName == 'checkout' && $l.operationName == 'orders publish')
+  | extract $d.flattenedLinks into lk using regexp(e=/traceId-(?<ptrace>[0-9a-f]+):spanId-[0-9a-f]+:linkType-FOLLOWS_FROM/)
+  | create ptrace from if($l.serviceName == 'checkout', $d.traceID:string, $d.lk.ptrace:string)
+  | groupby ptrace aggregate min(if($l.serviceName == 'checkout', $d.startTime:number, null)) as pub_us,
+      max(if($l.serviceName == 'accounting', $d.endTime:number, null)) as recv_us
+  | filter pub_us != null && recv_us != null | create age_ms from (recv_us - pub_us) / 1000
+  | aggregate percentile(0.5, age_ms) as p50, percentile(0.95, age_ms) as p95
+  ```
 - The performance alert's inferred group keys include `le`; the API rejects an explicit
   `["route"]`. Harmless: `histogram_quantile` drops `le`, so incidents are per route.
 - Envoy response code `0` (client closed the connection, e.g. a load-generator tab) is outside

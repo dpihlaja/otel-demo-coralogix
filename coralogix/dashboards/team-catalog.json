@@ -1,1252 +1,1240 @@
 {
- "name": "Team Catalog: product-catalog",
- "description": "Service-team view of product-catalog: dependants, the PostgreSQL dependency, shopper impact (edge + RUM), Go runtime, Kubernetes and logs.",
- "relativeTimeFrame": "3600s",
- "autoRefresh": "two_minutes",
- "layout": {
-  "sections": [
-   {
-    "options": {
-     "name": "\ud83d\udce6 Catalog team \u00b7 product-catalog",
-     "description": "Everything that touches the product catalog: who calls it, what it calls, what shoppers feel, and what it runs on.",
-     "color": "SECTION_PREDEFINED_COLOR_GREEN"
-    },
-    "rows": [
-     {
-      "height": 19,
-      "widgets": [
-       {
-        "title": "Service card",
-        "definition": {
-         "markdown": {
-          "markdownText": "### \ud83d\udce6 product-catalog\n**Team** Catalog \u00b7 **On-call** `#oncall-catalog` \u00b7 **Tier** high \u00b7 **Go** gRPC\n\n| \u2b05\ufe0f Called by | \u27a1\ufe0f Calls |\n|---|---|\n| \ud83d\udda5\ufe0f **frontend** \u00b7 GetProduct, ListProducts | \ud83d\udc18 **astronomy-db** \u00b7 PostgreSQL |\n| \ud83e\uddfe **checkout** \u00b7 GetProduct | \ud83d\udea9 **flagd** \u00b7 productCatalogFailure |\n| \u2728 **recommendation** \u00b7 ListProducts | |\n\n\ud83d\udd17 [Web & API](https://dpihlaja.app.cx498.coralogix.com/#/dashboards/EpGYoQkqLthy2FpVZJ2Y4) \u00b7 [Infra](https://dpihlaja.app.cx498.coralogix.com/#/dashboards/qzoR6PmYBR2f9ZqFJkP13) \u00b7 [RUM](https://dpihlaja.app.cx498.coralogix.com/#/dashboards/6Zv9SC5Su14DsfLpwOWyk) \u00b7 [Business](https://dpihlaja.app.cx498.coralogix.com/#/dashboards/lVBBrXTKXPJxtIowPSaoj)",
-          "tooltipText": "Ownership comes from the service-catalog custom enrichment"
-         }
-        }
-       },
-       {
-        "title": "Method health (error rate, 15 min)",
-        "definition": {
-         "hexagon": {
-          "query": {
-           "metrics": {
-            "promqlQuery": "sum by (method) (label_replace((sum by (span_name) (increase(calls_total{service_name=\"product-catalog\", span_kind=\"SPAN_KIND_SERVER\", span_name=~\"oteldemo[.]ProductCatalogService/.+\", status_code=\"STATUS_CODE_ERROR\"}[15m])) or 0 * sum by (span_name) (increase(calls_total{service_name=\"product-catalog\", span_kind=\"SPAN_KIND_SERVER\", span_name=~\"oteldemo[.]ProductCatalogService/.+\"}[15m]))) / sum by (span_name) (increase(calls_total{service_name=\"product-catalog\", span_kind=\"SPAN_KIND_SERVER\", span_name=~\"oteldemo[.]ProductCatalogService/.+\"}[15m])), \"method\", \"$1\", \"span_name\", \"oteldemo[.]ProductCatalogService/(.+)\"))",
-            "promqlQueryType": "PROM_QL_QUERY_TYPE_INSTANT",
-            "aggregation": "AGGREGATION_LAST"
-           }
-          },
-          "min": 0,
-          "max": 0.2,
-          "unit": "UNIT_PERCENT_ZERO_ONE",
-          "decimal": 1,
-          "thresholdType": "THRESHOLD_TYPE_ABSOLUTE",
-          "thresholds": [
-           {
-            "from": 0,
-            "color": "green"
-           },
-           {
-            "from": 0.01,
-            "color": "orange"
-           },
-           {
-            "from": 0.05,
-            "color": "red"
-           }
-          ],
-          "legend": {
-           "isVisible": true,
-           "placement": "LEGEND_PLACEMENT_BOTTOM"
-          },
-          "legendBy": "LEGEND_BY_GROUPS"
-         }
+  "name": "Team Catalog: product-catalog",
+  "description": "Service-team view of product-catalog: dependants, the PostgreSQL dependency, shopper impact (edge + RUM), Go runtime, Kubernetes and logs.",
+  "relativeTimeFrame": "3600s",
+  "autoRefresh": "two_minutes",
+  "layout": {
+    "sections": [
+      {
+        "options": {
+          "name": "\ud83d\udce6 Catalog team \u00b7 product-catalog",
+          "description": "Everything that touches the product catalog: who calls it, what it calls, what shoppers feel, and what it runs on.",
+          "color": "SECTION_PREDEFINED_COLOR_GREEN"
         },
-        "description": "One tile per gRPC method, colored by error rate"
-       },
-       {
-        "title": "Caller health (errors they see, 15 min)",
-        "definition": {
-         "hexagon": {
-          "query": {
-           "metrics": {
-            "promqlQuery": "(sum by (service_name) (increase(calls_total{span_kind=\"SPAN_KIND_CLIENT\", span_name=~\"oteldemo[.]ProductCatalogService/.+\", status_code=\"STATUS_CODE_ERROR\"}[15m])) or 0 * sum by (service_name) (increase(calls_total{span_kind=\"SPAN_KIND_CLIENT\", span_name=~\"oteldemo[.]ProductCatalogService/.+\"}[15m]))) / sum by (service_name) (increase(calls_total{span_kind=\"SPAN_KIND_CLIENT\", span_name=~\"oteldemo[.]ProductCatalogService/.+\"}[15m]))",
-            "promqlQueryType": "PROM_QL_QUERY_TYPE_INSTANT",
-            "aggregation": "AGGREGATION_LAST"
-           }
-          },
-          "min": 0,
-          "max": 0.2,
-          "unit": "UNIT_PERCENT_ZERO_ONE",
-          "decimal": 1,
-          "thresholdType": "THRESHOLD_TYPE_ABSOLUTE",
-          "thresholds": [
-           {
-            "from": 0,
-            "color": "green"
-           },
-           {
-            "from": 0.01,
-            "color": "orange"
-           },
-           {
-            "from": 0.05,
-            "color": "red"
-           }
-          ],
-          "legend": {
-           "isVisible": true,
-           "placement": "LEGEND_PLACEMENT_BOTTOM"
-          },
-          "legendBy": "LEGEND_BY_GROUPS"
-         }
-        },
-        "description": "One tile per dependant service: the share of its catalog calls that failed"
-       }
-      ]
-     }
-    ]
-   },
-   {
-    "options": {
-     "name": "Golden signals (last 15 min)",
-     "description": "Traffic, errors, latency and saturation for the service itself.",
-     "color": "SECTION_PREDEFINED_COLOR_GREEN"
-    },
-    "rows": [
-     {
-      "height": 12,
-      "widgets": [
-       {
-        "title": "Requests/s",
-        "definition": {
-         "gauge": {
-          "query": {
-           "metrics": {
-            "promqlQuery": "sum(rate(calls_total{service_name=\"product-catalog\", span_kind=\"SPAN_KIND_SERVER\", span_name=~\"oteldemo[.]ProductCatalogService/.+\"}[15m]))",
-            "aggregation": "AGGREGATION_LAST"
-           }
-          },
-          "min": 0,
-          "max": 20,
-          "unit": "UNIT_NUMBER",
-          "decimal": 1,
-          "thresholdType": "THRESHOLD_TYPE_ABSOLUTE",
-          "thresholdBy": "THRESHOLD_BY_BACKGROUND",
-          "thresholds": [
-           {
-            "from": 0,
-            "color": "green"
-           },
-           {
-            "from": 15,
-            "color": "orange"
-           },
-           {
-            "from": 18,
-            "color": "red"
-           }
-          ],
-          "arcDisplay": {
-           "valueArc": false,
-           "thresholdArc": false
-          },
-          "displaySeriesName": false
-         }
-        }
-       },
-       {
-        "title": "Error rate",
-        "definition": {
-         "gauge": {
-          "query": {
-           "metrics": {
-            "promqlQuery": "(sum(increase(calls_total{service_name=\"product-catalog\", span_kind=\"SPAN_KIND_SERVER\", span_name=~\"oteldemo[.]ProductCatalogService/.+\", status_code=\"STATUS_CODE_ERROR\"}[15m])) or vector(0)) / sum(increase(calls_total{service_name=\"product-catalog\", span_kind=\"SPAN_KIND_SERVER\", span_name=~\"oteldemo[.]ProductCatalogService/.+\"}[15m]))",
-            "aggregation": "AGGREGATION_LAST"
-           }
-          },
-          "min": 0,
-          "max": 0.2,
-          "unit": "UNIT_PERCENT_ZERO_ONE",
-          "decimal": 2,
-          "thresholdType": "THRESHOLD_TYPE_ABSOLUTE",
-          "thresholdBy": "THRESHOLD_BY_VALUE",
-          "thresholds": [
-           {
-            "from": 0,
-            "color": "green"
-           },
-           {
-            "from": 0.01,
-            "color": "orange"
-           },
-           {
-            "from": 0.05,
-            "color": "red"
-           }
-          ],
-          "arcDisplay": {
-           "valueArc": true,
-           "thresholdArc": true
-          },
-          "displaySeriesName": false
-         }
-        }
-       },
-       {
-        "title": "GetProduct p95",
-        "definition": {
-         "gauge": {
-          "query": {
-           "metrics": {
-            "promqlQuery": "histogram_quantile(0.95, sum by (le) (rate(duration_ms_bucket{service_name=\"product-catalog\", span_kind=\"SPAN_KIND_SERVER\", span_name=\"oteldemo.ProductCatalogService/GetProduct\"}[15m])))",
-            "aggregation": "AGGREGATION_LAST"
-           }
-          },
-          "min": 0,
-          "max": 500,
-          "unit": "UNIT_MILLISECONDS",
-          "decimal": 0,
-          "thresholdType": "THRESHOLD_TYPE_ABSOLUTE",
-          "thresholdBy": "THRESHOLD_BY_VALUE",
-          "thresholds": [
-           {
-            "from": 0,
-            "color": "green"
-           },
-           {
-            "from": 100,
-            "color": "orange"
-           },
-           {
-            "from": 250,
-            "color": "red"
-           }
-          ],
-          "arcDisplay": {
-           "valueArc": true,
-           "thresholdArc": true
-          },
-          "displaySeriesName": false
-         }
-        }
-       },
-       {
-        "title": "ListProducts p95",
-        "definition": {
-         "gauge": {
-          "query": {
-           "metrics": {
-            "promqlQuery": "histogram_quantile(0.95, sum by (le) (rate(duration_ms_bucket{service_name=\"product-catalog\", span_kind=\"SPAN_KIND_SERVER\", span_name=\"oteldemo.ProductCatalogService/ListProducts\"}[15m])))",
-            "aggregation": "AGGREGATION_LAST"
-           }
-          },
-          "min": 0,
-          "max": 500,
-          "unit": "UNIT_MILLISECONDS",
-          "decimal": 0,
-          "thresholdType": "THRESHOLD_TYPE_ABSOLUTE",
-          "thresholdBy": "THRESHOLD_BY_VALUE",
-          "thresholds": [
-           {
-            "from": 0,
-            "color": "green"
-           },
-           {
-            "from": 100,
-            "color": "orange"
-           },
-           {
-            "from": 250,
-            "color": "red"
-           }
-          ],
-          "arcDisplay": {
-           "valueArc": true,
-           "thresholdArc": true
-          },
-          "displaySeriesName": false
-         }
-        }
-       },
-       {
-        "title": "DB query p95",
-        "definition": {
-         "gauge": {
-          "query": {
-           "metrics": {
-            "promqlQuery": "histogram_quantile(0.95, sum by (le) (rate(db_client_operation_duration_s_bucket{service_name=\"product-catalog\", db_operation_name=\"sql.conn.query\"}[15m]))) * 1000",
-            "aggregation": "AGGREGATION_LAST"
-           }
-          },
-          "min": 0,
-          "max": 200,
-          "unit": "UNIT_MILLISECONDS",
-          "decimal": 0,
-          "thresholdType": "THRESHOLD_TYPE_ABSOLUTE",
-          "thresholdBy": "THRESHOLD_BY_VALUE",
-          "thresholds": [
-           {
-            "from": 0,
-            "color": "green"
-           },
-           {
-            "from": 50,
-            "color": "orange"
-           },
-           {
-            "from": 100,
-            "color": "red"
-           }
-          ],
-          "arcDisplay": {
-           "valueArc": true,
-           "thresholdArc": true
-          },
-          "displaySeriesName": false
-         }
-        }
-       },
-       {
-        "title": "Memory vs limit",
-        "definition": {
-         "gauge": {
-          "query": {
-           "metrics": {
-            "promqlQuery": "max(container_memory_working_set_By{k8s_container_name=\"product-catalog\"}) / max(k8s_container_memory_limit_By{k8s_container_name=\"product-catalog\"})",
-            "aggregation": "AGGREGATION_LAST"
-           }
-          },
-          "min": 0,
-          "max": 1,
-          "unit": "UNIT_PERCENT_ZERO_ONE",
-          "decimal": 0,
-          "thresholdType": "THRESHOLD_TYPE_ABSOLUTE",
-          "thresholdBy": "THRESHOLD_BY_VALUE",
-          "thresholds": [
-           {
-            "from": 0,
-            "color": "green"
-           },
-           {
-            "from": 0.8,
-            "color": "orange"
-           },
-           {
-            "from": 0.9,
-            "color": "red"
-           }
-          ],
-          "arcDisplay": {
-           "valueArc": true,
-           "thresholdArc": true
-          },
-          "displaySeriesName": false
-         }
-        }
-       }
-      ]
-     }
-    ]
-   },
-   {
-    "options": {
-     "name": "\u2b05\ufe0f Who depends on us",
-     "description": "Calls into product-catalog from frontend, checkout and recommendation, measured on the caller's side.",
-     "color": "SECTION_PREDEFINED_COLOR_BLUE"
-    },
-    "rows": [
-     {
-      "height": 19,
-      "widgets": [
-       {
-        "title": "Calls/s by caller and method",
-        "definition": {
-         "lineChart": {
-          "queryDefinitions": [
-           {
-            "name": "calls",
-            "seriesNameTemplate": "{{service_name}} \u2192 {{method}}",
-            "colorScheme": "cold",
-            "query": {
-             "metrics": {
-              "promqlQuery": "sum by (service_name, method) (label_replace(sum by (service_name, span_name) (rate(calls_total{span_kind=\"SPAN_KIND_CLIENT\", span_name=~\"oteldemo[.]ProductCatalogService/.+\"}[5m])), \"method\", \"$1\", \"span_name\", \"oteldemo[.]ProductCatalogService/(.+)\"))"
-             }
-            }
-           }
-          ],
-          "legend": {
-           "isVisible": true,
-           "columns": [
-            "LEGEND_COLUMN_LAST",
-            "LEGEND_COLUMN_MAX"
-           ],
-           "placement": "LEGEND_PLACEMENT_SIDE"
-          },
-          "stackedLine": "STACKED_LINE_ABSOLUTE"
-         }
-        }
-       },
-       {
-        "title": "Traffic share by caller (1h)",
-        "definition": {
-         "pieChart": {
-          "query": {
-           "metrics": {
-            "promqlQuery": "sum by (service_name) (increase(calls_total{span_kind=\"SPAN_KIND_CLIENT\", span_name=~\"oteldemo[.]ProductCatalogService/.+\"}[1h]))",
-            "promqlQueryType": "PROM_QL_QUERY_TYPE_INSTANT",
-            "aggregation": "AGGREGATION_LAST",
-            "groupNames": [
-             "service_name"
+        "rows": [
+          {
+            "height": 19,
+            "widgets": [
+              {
+                "title": "Service card",
+                "definition": {
+                  "markdown": {
+                    "markdownText": "### \ud83d\udce6 product-catalog\n**Team** Catalog \u00b7 **On-call** `#oncall-catalog` \u00b7 **Tier** high \u00b7 **Go** gRPC\n\n| \u2b05\ufe0f Called by | \u27a1\ufe0f Calls |\n|---|---|\n| \ud83d\udda5\ufe0f **frontend** \u00b7 GetProduct, ListProducts | \ud83d\udc18 **astronomy-db** \u00b7 PostgreSQL |\n| \ud83e\uddfe **checkout** \u00b7 GetProduct | \ud83d\udea9 **flagd** \u00b7 productCatalogFailure |\n| \u2728 **recommendation** \u00b7 ListProducts | |\n\n\ud83d\udd17 [Requests](https://dpihlaja.app.cx498.coralogix.com/#/dashboards/EpGYoQkqLthy2FpVZJ2Y4) \u00b7 [Experience](https://dpihlaja.app.cx498.coralogix.com/#/dashboards/6Zv9SC5Su14DsfLpwOWyk) \u00b7 [Infra](https://dpihlaja.app.cx498.coralogix.com/#/dashboards/qzoR6PmYBR2f9ZqFJkP13) \u00b7 [Business](https://dpihlaja.app.cx498.coralogix.com/#/dashboards/lVBBrXTKXPJxtIowPSaoj)",
+                    "tooltipText": "Ownership comes from the service-catalog custom enrichment"
+                  }
+                }
+              },
+              {
+                "title": "Method health (error rate, 15 min)",
+                "definition": {
+                  "hexagon": {
+                    "query": {
+                      "metrics": {
+                        "promqlQuery": "sum by (method) (label_replace((sum by (span_name) (increase(calls_total{service_name=\"product-catalog\", span_kind=\"SPAN_KIND_SERVER\", span_name=~\"oteldemo[.]ProductCatalogService/.+\", status_code=\"STATUS_CODE_ERROR\"}[15m])) or 0 * sum by (span_name) (increase(calls_total{service_name=\"product-catalog\", span_kind=\"SPAN_KIND_SERVER\", span_name=~\"oteldemo[.]ProductCatalogService/.+\"}[15m]))) / sum by (span_name) (increase(calls_total{service_name=\"product-catalog\", span_kind=\"SPAN_KIND_SERVER\", span_name=~\"oteldemo[.]ProductCatalogService/.+\"}[15m])), \"method\", \"$1\", \"span_name\", \"oteldemo[.]ProductCatalogService/(.+)\"))",
+                        "promqlQueryType": "PROM_QL_QUERY_TYPE_INSTANT",
+                        "aggregation": "AGGREGATION_LAST"
+                      }
+                    },
+                    "min": 0,
+                    "max": 0.2,
+                    "unit": "UNIT_PERCENT_ZERO_ONE",
+                    "decimal": 1,
+                    "thresholdType": "THRESHOLD_TYPE_ABSOLUTE",
+                    "thresholds": [
+                      {
+                        "from": 0,
+                        "color": "green"
+                      },
+                      {
+                        "from": 0.01,
+                        "color": "orange"
+                      },
+                      {
+                        "from": 0.05,
+                        "color": "red"
+                      }
+                    ],
+                    "legend": {
+                      "isVisible": true,
+                      "placement": "LEGEND_PLACEMENT_BOTTOM"
+                    },
+                    "legendBy": "LEGEND_BY_GROUPS"
+                  }
+                },
+                "description": "One tile per gRPC method, colored by error rate"
+              },
+              {
+                "title": "Caller health (errors they see, 15 min)",
+                "definition": {
+                  "hexagon": {
+                    "query": {
+                      "metrics": {
+                        "promqlQuery": "(sum by (service_name) (increase(calls_total{span_kind=\"SPAN_KIND_CLIENT\", span_name=~\"oteldemo[.]ProductCatalogService/.+\", status_code=\"STATUS_CODE_ERROR\"}[15m])) or 0 * sum by (service_name) (increase(calls_total{span_kind=\"SPAN_KIND_CLIENT\", span_name=~\"oteldemo[.]ProductCatalogService/.+\"}[15m]))) / sum by (service_name) (increase(calls_total{span_kind=\"SPAN_KIND_CLIENT\", span_name=~\"oteldemo[.]ProductCatalogService/.+\"}[15m]))",
+                        "promqlQueryType": "PROM_QL_QUERY_TYPE_INSTANT",
+                        "aggregation": "AGGREGATION_LAST"
+                      }
+                    },
+                    "min": 0,
+                    "max": 0.2,
+                    "unit": "UNIT_PERCENT_ZERO_ONE",
+                    "decimal": 1,
+                    "thresholdType": "THRESHOLD_TYPE_ABSOLUTE",
+                    "thresholds": [
+                      {
+                        "from": 0,
+                        "color": "green"
+                      },
+                      {
+                        "from": 0.01,
+                        "color": "orange"
+                      },
+                      {
+                        "from": 0.05,
+                        "color": "red"
+                      }
+                    ],
+                    "legend": {
+                      "isVisible": true,
+                      "placement": "LEGEND_PLACEMENT_BOTTOM"
+                    },
+                    "legendBy": "LEGEND_BY_GROUPS"
+                  }
+                },
+                "description": "One tile per dependant service: the share of its catalog calls that failed"
+              }
             ]
-           }
-          },
-          "maxSlicesPerChart": 6,
-          "minSlicePercentage": 1,
-          "showLegend": true,
-          "showTotal": true,
-          "colorScheme": "cold",
-          "decimal": 0,
-          "labelDefinition": {
-           "labelSource": "LABEL_SOURCE_INNER",
-           "isVisible": true,
-           "showName": true,
-           "showValue": false,
-           "showPercentage": true
-          },
-          "groupNameTemplate": "{{service_name}}"
-         }
-        }
-       },
-       {
-        "title": "Caller-seen p95 vs server p95",
-        "definition": {
-         "lineChart": {
-          "queryDefinitions": [
-           {
-            "name": "callers",
-            "seriesNameTemplate": "seen by {{service_name}}",
-            "unit": "UNIT_MILLISECONDS",
-            "query": {
-             "metrics": {
-              "promqlQuery": "histogram_quantile(0.95, sum by (service_name, le) (rate(duration_ms_bucket{span_kind=\"SPAN_KIND_CLIENT\", span_name=~\"oteldemo[.]ProductCatalogService/.+\"}[5m])))"
-             }
-            }
-           },
-           {
-            "name": "server",
-            "seriesNameTemplate": "product-catalog (server)",
-            "unit": "UNIT_MILLISECONDS",
-            "colorScheme": "green",
-            "query": {
-             "metrics": {
-              "promqlQuery": "histogram_quantile(0.95, sum by (le) (rate(duration_ms_bucket{service_name=\"product-catalog\", span_kind=\"SPAN_KIND_SERVER\", span_name=~\"oteldemo[.]ProductCatalogService/.+\"}[5m])))"
-             }
-            }
-           }
-          ],
-          "legend": {
-           "isVisible": true,
-           "columns": [
-            "LEGEND_COLUMN_LAST",
-            "LEGEND_COLUMN_MAX"
-           ],
-           "placement": "LEGEND_PLACEMENT_SIDE"
           }
-         }
+        ]
+      },
+      {
+        "options": {
+          "name": "Golden signals (last 15 min)",
+          "description": "Traffic, errors, latency and saturation for the service itself.",
+          "color": "SECTION_PREDEFINED_COLOR_GREEN"
         },
-        "description": "The gap between a caller's line and the server line is network, queueing and client-side retries."
-       }
-      ]
-     },
-     {
-      "height": 19,
-      "widgets": [
-       {
-        "title": "Failed calls seen by callers (per s)",
-        "definition": {
-         "lineChart": {
-          "queryDefinitions": [
-           {
-            "name": "errors",
-            "seriesNameTemplate": "{{service_name}} \u2192 {{method}}",
-            "colorScheme": "red",
-            "query": {
-             "metrics": {
-              "promqlQuery": "sum by (service_name, method) (label_replace(sum by (service_name, span_name) (rate(calls_total{span_kind=\"SPAN_KIND_CLIENT\", span_name=~\"oteldemo[.]ProductCatalogService/.+\", status_code=\"STATUS_CODE_ERROR\"}[5m])), \"method\", \"$1\", \"span_name\", \"oteldemo[.]ProductCatalogService/(.+)\")) > 0"
-             }
-            }
-           }
-          ],
-          "legend": {
-           "isVisible": true,
-           "columns": [
-            "LEGEND_COLUMN_LAST",
-            "LEGEND_COLUMN_MAX"
-           ],
-           "placement": "LEGEND_PLACEMENT_SIDE"
+        "rows": [
+          {
+            "height": 12,
+            "widgets": [
+              {
+                "title": "Requests/s",
+                "definition": {
+                  "gauge": {
+                    "query": {
+                      "metrics": {
+                        "promqlQuery": "sum(rate(calls_total{service_name=\"product-catalog\", span_kind=\"SPAN_KIND_SERVER\", span_name=~\"oteldemo[.]ProductCatalogService/.+\"}[15m]))",
+                        "aggregation": "AGGREGATION_LAST"
+                      }
+                    },
+                    "min": 0,
+                    "max": 20,
+                    "unit": "UNIT_NUMBER",
+                    "decimal": 1,
+                    "thresholdType": "THRESHOLD_TYPE_ABSOLUTE",
+                    "thresholdBy": "THRESHOLD_BY_BACKGROUND",
+                    "thresholds": [
+                      {
+                        "from": 0,
+                        "color": "green"
+                      },
+                      {
+                        "from": 15,
+                        "color": "orange"
+                      },
+                      {
+                        "from": 18,
+                        "color": "red"
+                      }
+                    ],
+                    "arcDisplay": {
+                      "valueArc": false,
+                      "thresholdArc": false
+                    },
+                    "displaySeriesName": false
+                  }
+                }
+              },
+              {
+                "title": "Error rate",
+                "definition": {
+                  "gauge": {
+                    "query": {
+                      "metrics": {
+                        "promqlQuery": "(sum(increase(calls_total{service_name=\"product-catalog\", span_kind=\"SPAN_KIND_SERVER\", span_name=~\"oteldemo[.]ProductCatalogService/.+\", status_code=\"STATUS_CODE_ERROR\"}[15m])) or vector(0)) / sum(increase(calls_total{service_name=\"product-catalog\", span_kind=\"SPAN_KIND_SERVER\", span_name=~\"oteldemo[.]ProductCatalogService/.+\"}[15m]))",
+                        "aggregation": "AGGREGATION_LAST"
+                      }
+                    },
+                    "min": 0,
+                    "max": 0.2,
+                    "unit": "UNIT_PERCENT_ZERO_ONE",
+                    "decimal": 2,
+                    "thresholdType": "THRESHOLD_TYPE_ABSOLUTE",
+                    "thresholdBy": "THRESHOLD_BY_VALUE",
+                    "thresholds": [
+                      {
+                        "from": 0,
+                        "color": "green"
+                      },
+                      {
+                        "from": 0.01,
+                        "color": "orange"
+                      },
+                      {
+                        "from": 0.05,
+                        "color": "red"
+                      }
+                    ],
+                    "arcDisplay": {
+                      "valueArc": true,
+                      "thresholdArc": true
+                    },
+                    "displaySeriesName": false
+                  }
+                }
+              },
+              {
+                "title": "GetProduct p95",
+                "definition": {
+                  "gauge": {
+                    "query": {
+                      "metrics": {
+                        "promqlQuery": "histogram_quantile(0.95, sum by (le) (rate(duration_ms_bucket{service_name=\"product-catalog\", span_kind=\"SPAN_KIND_SERVER\", span_name=\"oteldemo.ProductCatalogService/GetProduct\"}[15m])))",
+                        "aggregation": "AGGREGATION_LAST"
+                      }
+                    },
+                    "min": 0,
+                    "max": 500,
+                    "unit": "UNIT_MILLISECONDS",
+                    "decimal": 0,
+                    "thresholdType": "THRESHOLD_TYPE_ABSOLUTE",
+                    "thresholdBy": "THRESHOLD_BY_VALUE",
+                    "thresholds": [
+                      {
+                        "from": 0,
+                        "color": "green"
+                      },
+                      {
+                        "from": 100,
+                        "color": "orange"
+                      },
+                      {
+                        "from": 250,
+                        "color": "red"
+                      }
+                    ],
+                    "arcDisplay": {
+                      "valueArc": true,
+                      "thresholdArc": true
+                    },
+                    "displaySeriesName": false
+                  }
+                }
+              },
+              {
+                "title": "ListProducts p95",
+                "definition": {
+                  "gauge": {
+                    "query": {
+                      "metrics": {
+                        "promqlQuery": "histogram_quantile(0.95, sum by (le) (rate(duration_ms_bucket{service_name=\"product-catalog\", span_kind=\"SPAN_KIND_SERVER\", span_name=\"oteldemo.ProductCatalogService/ListProducts\"}[15m])))",
+                        "aggregation": "AGGREGATION_LAST"
+                      }
+                    },
+                    "min": 0,
+                    "max": 500,
+                    "unit": "UNIT_MILLISECONDS",
+                    "decimal": 0,
+                    "thresholdType": "THRESHOLD_TYPE_ABSOLUTE",
+                    "thresholdBy": "THRESHOLD_BY_VALUE",
+                    "thresholds": [
+                      {
+                        "from": 0,
+                        "color": "green"
+                      },
+                      {
+                        "from": 100,
+                        "color": "orange"
+                      },
+                      {
+                        "from": 250,
+                        "color": "red"
+                      }
+                    ],
+                    "arcDisplay": {
+                      "valueArc": true,
+                      "thresholdArc": true
+                    },
+                    "displaySeriesName": false
+                  }
+                }
+              },
+              {
+                "title": "DB query p95",
+                "definition": {
+                  "gauge": {
+                    "query": {
+                      "metrics": {
+                        "promqlQuery": "histogram_quantile(0.95, sum by (le) (rate(db_client_operation_duration_s_bucket{service_name=\"product-catalog\", db_operation_name=\"sql.conn.query\"}[15m]))) * 1000",
+                        "aggregation": "AGGREGATION_LAST"
+                      }
+                    },
+                    "min": 0,
+                    "max": 200,
+                    "unit": "UNIT_MILLISECONDS",
+                    "decimal": 0,
+                    "thresholdType": "THRESHOLD_TYPE_ABSOLUTE",
+                    "thresholdBy": "THRESHOLD_BY_VALUE",
+                    "thresholds": [
+                      {
+                        "from": 0,
+                        "color": "green"
+                      },
+                      {
+                        "from": 50,
+                        "color": "orange"
+                      },
+                      {
+                        "from": 100,
+                        "color": "red"
+                      }
+                    ],
+                    "arcDisplay": {
+                      "valueArc": true,
+                      "thresholdArc": true
+                    },
+                    "displaySeriesName": false
+                  }
+                }
+              },
+              {
+                "title": "Memory vs limit",
+                "definition": {
+                  "gauge": {
+                    "query": {
+                      "metrics": {
+                        "promqlQuery": "max(container_memory_working_set_By{k8s_container_name=\"product-catalog\"}) / max(k8s_container_memory_limit_By{k8s_container_name=\"product-catalog\"})",
+                        "aggregation": "AGGREGATION_LAST"
+                      }
+                    },
+                    "min": 0,
+                    "max": 1,
+                    "unit": "UNIT_PERCENT_ZERO_ONE",
+                    "decimal": 0,
+                    "thresholdType": "THRESHOLD_TYPE_ABSOLUTE",
+                    "thresholdBy": "THRESHOLD_BY_VALUE",
+                    "thresholds": [
+                      {
+                        "from": 0,
+                        "color": "green"
+                      },
+                      {
+                        "from": 0.8,
+                        "color": "orange"
+                      },
+                      {
+                        "from": 0.9,
+                        "color": "red"
+                      }
+                    ],
+                    "arcDisplay": {
+                      "valueArc": true,
+                      "thresholdArc": true
+                    },
+                    "displaySeriesName": false
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "options": {
+          "name": "\u2b05\ufe0f Who depends on us",
+          "description": "Calls into product-catalog from frontend, checkout and recommendation, measured on the caller's side.",
+          "color": "SECTION_PREDEFINED_COLOR_BLUE"
+        },
+        "rows": [
+          {
+            "height": 19,
+            "widgets": [
+              {
+                "title": "Calls/s by caller and method",
+                "definition": {
+                  "lineChart": {
+                    "queryDefinitions": [
+                      {
+                        "name": "calls",
+                        "seriesNameTemplate": "{{service_name}} \u2192 {{method}}",
+                        "colorScheme": "cold",
+                        "query": {
+                          "metrics": {
+                            "promqlQuery": "sum by (service_name, method) (label_replace(sum by (service_name, span_name) (rate(calls_total{span_kind=\"SPAN_KIND_CLIENT\", span_name=~\"oteldemo[.]ProductCatalogService/.+\"}[5m])), \"method\", \"$1\", \"span_name\", \"oteldemo[.]ProductCatalogService/(.+)\"))"
+                          }
+                        }
+                      }
+                    ],
+                    "legend": {
+                      "isVisible": true,
+                      "columns": [
+                        "LEGEND_COLUMN_LAST",
+                        "LEGEND_COLUMN_MAX"
+                      ],
+                      "placement": "LEGEND_PLACEMENT_SIDE"
+                    },
+                    "stackedLine": "STACKED_LINE_ABSOLUTE"
+                  }
+                }
+              },
+              {
+                "title": "Traffic share by caller (1h)",
+                "definition": {
+                  "pieChart": {
+                    "query": {
+                      "metrics": {
+                        "promqlQuery": "sum by (service_name) (increase(calls_total{span_kind=\"SPAN_KIND_CLIENT\", span_name=~\"oteldemo[.]ProductCatalogService/.+\"}[1h]))",
+                        "promqlQueryType": "PROM_QL_QUERY_TYPE_INSTANT",
+                        "aggregation": "AGGREGATION_LAST",
+                        "groupNames": [
+                          "service_name"
+                        ]
+                      }
+                    },
+                    "maxSlicesPerChart": 6,
+                    "minSlicePercentage": 1,
+                    "showLegend": true,
+                    "showTotal": true,
+                    "colorScheme": "cold",
+                    "decimal": 0,
+                    "labelDefinition": {
+                      "labelSource": "LABEL_SOURCE_INNER",
+                      "isVisible": true,
+                      "showName": true,
+                      "showValue": false,
+                      "showPercentage": true
+                    },
+                    "groupNameTemplate": "{{service_name}}"
+                  }
+                }
+              },
+              {
+                "title": "Caller-seen p95 vs server p95",
+                "definition": {
+                  "lineChart": {
+                    "queryDefinitions": [
+                      {
+                        "name": "callers",
+                        "seriesNameTemplate": "seen by {{service_name}}",
+                        "unit": "UNIT_MILLISECONDS",
+                        "query": {
+                          "metrics": {
+                            "promqlQuery": "histogram_quantile(0.95, sum by (service_name, le) (rate(duration_ms_bucket{span_kind=\"SPAN_KIND_CLIENT\", span_name=~\"oteldemo[.]ProductCatalogService/.+\"}[5m])))"
+                          }
+                        }
+                      },
+                      {
+                        "name": "server",
+                        "seriesNameTemplate": "product-catalog (server)",
+                        "unit": "UNIT_MILLISECONDS",
+                        "colorScheme": "green",
+                        "query": {
+                          "metrics": {
+                            "promqlQuery": "histogram_quantile(0.95, sum by (le) (rate(duration_ms_bucket{service_name=\"product-catalog\", span_kind=\"SPAN_KIND_SERVER\", span_name=~\"oteldemo[.]ProductCatalogService/.+\"}[5m])))"
+                          }
+                        }
+                      }
+                    ],
+                    "legend": {
+                      "isVisible": true,
+                      "columns": [
+                        "LEGEND_COLUMN_LAST",
+                        "LEGEND_COLUMN_MAX"
+                      ],
+                      "placement": "LEGEND_PLACEMENT_SIDE"
+                    }
+                  }
+                },
+                "description": "The gap between a caller's line and the server line is network, queueing and client-side retries."
+              }
+            ]
           },
-          "stackedLine": "STACKED_LINE_ABSOLUTE"
-         }
-        }
-       },
-       {
-        "title": "Errors by method, gRPC status and product (1h)",
-        "description": "From error spans, which tail sampling keeps in full. INTERNAL on one product = productCatalogFailure flag; NOT_FOUND across products = the database didn't answer.",
-        "definition": {
-         "dataTable": {
-          "query": {
-           "dataprime": {
-            "query": "source spans | filter $l.serviceName == 'product-catalog' && $d.tags['span.kind'] == 'server' && $d.tags['otel.status_code'] == 'ERROR' | groupby substr($l.operationName, 31, 40) as method, $d.tags['rpc.response.status_code']:string as grpc_status, $d.tags['demo.product.id']:string as product_id aggregate count() as errors | orderby errors desc",
-            "timeFrame": {
-             "relative": "3600s"
-            }
-           }
+          {
+            "height": 19,
+            "widgets": [
+              {
+                "title": "Failed calls seen by callers (per s)",
+                "definition": {
+                  "lineChart": {
+                    "queryDefinitions": [
+                      {
+                        "name": "errors",
+                        "seriesNameTemplate": "{{service_name}} \u2192 {{method}}",
+                        "colorScheme": "red",
+                        "query": {
+                          "metrics": {
+                            "promqlQuery": "sum by (service_name, method) (label_replace(sum by (service_name, span_name) (rate(calls_total{span_kind=\"SPAN_KIND_CLIENT\", span_name=~\"oteldemo[.]ProductCatalogService/.+\", status_code=\"STATUS_CODE_ERROR\"}[5m])), \"method\", \"$1\", \"span_name\", \"oteldemo[.]ProductCatalogService/(.+)\")) > 0"
+                          }
+                        }
+                      }
+                    ],
+                    "legend": {
+                      "isVisible": true,
+                      "columns": [
+                        "LEGEND_COLUMN_LAST",
+                        "LEGEND_COLUMN_MAX"
+                      ],
+                      "placement": "LEGEND_PLACEMENT_SIDE"
+                    },
+                    "stackedLine": "STACKED_LINE_ABSOLUTE"
+                  }
+                }
+              },
+              {
+                "title": "Errors by method, gRPC status and product",
+                "description": "From error spans, which tail sampling keeps in full. INTERNAL on one product = productCatalogFailure flag; NOT_FOUND across products = the database didn't answer.",
+                "definition": {
+                  "dataTable": {
+                    "query": {
+                      "dataprime": {
+                        "query": "source spans | filter $l.serviceName == 'product-catalog' && $d.tags['span.kind'] == 'server' && $d.tags['otel.status_code'] == 'ERROR' | groupby substr($l.operationName, 31, 40) as method, $d.tags['rpc.response.status_code']:string as grpc_status, $d.tags['demo.product.id']:string as product_id aggregate count() as errors | orderby errors desc"
+                      }
+                    },
+                    "resultsPerPage": 10,
+                    "rowStyle": "ROW_STYLE_ONE_LINE",
+                    "columns": [
+                      {
+                        "field": "method"
+                      },
+                      {
+                        "field": "grpc_status"
+                      },
+                      {
+                        "field": "product_id"
+                      },
+                      {
+                        "field": "errors"
+                      }
+                    ]
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "options": {
+          "name": "\ud83d\uded2 Shopper impact: edge and browser",
+          "description": "What the catalog's health means for people browsing: the /api/products routes at the proxy, and product pages in real browsers (RUM).",
+          "color": "SECTION_PREDEFINED_COLOR_MAGENTA"
+        },
+        "rows": [
+          {
+            "height": 12,
+            "widgets": [
+              {
+                "title": "Edge p95 (/api/products*)",
+                "definition": {
+                  "gauge": {
+                    "query": {
+                      "metrics": {
+                        "promqlQuery": "histogram_quantile(0.95, sum by (le) (sum_over_time(proxy_duration_ms_cx_bucket{route=~\"/api/products.*\"}[15m])))",
+                        "aggregation": "AGGREGATION_LAST"
+                      }
+                    },
+                    "min": 0,
+                    "max": 5000,
+                    "unit": "UNIT_MILLISECONDS",
+                    "decimal": 0,
+                    "thresholdType": "THRESHOLD_TYPE_ABSOLUTE",
+                    "thresholdBy": "THRESHOLD_BY_BACKGROUND",
+                    "thresholds": [
+                      {
+                        "from": 0,
+                        "color": "green"
+                      },
+                      {
+                        "from": 1000,
+                        "color": "orange"
+                      },
+                      {
+                        "from": 2500,
+                        "color": "red"
+                      }
+                    ],
+                    "arcDisplay": {
+                      "valueArc": false,
+                      "thresholdArc": false
+                    },
+                    "displaySeriesName": false
+                  }
+                }
+              },
+              {
+                "title": "Edge 5xx share",
+                "definition": {
+                  "gauge": {
+                    "query": {
+                      "metrics": {
+                        "promqlQuery": "(sum(sum_over_time(proxy_requests_cx_docs_total{route=~\"/api/products.*\", status_code=~\"5..\"}[15m])) or vector(0)) / sum(sum_over_time(proxy_requests_cx_docs_total{route=~\"/api/products.*\"}[15m]))",
+                        "aggregation": "AGGREGATION_LAST"
+                      }
+                    },
+                    "min": 0,
+                    "max": 0.2,
+                    "unit": "UNIT_PERCENT_ZERO_ONE",
+                    "decimal": 2,
+                    "thresholdType": "THRESHOLD_TYPE_ABSOLUTE",
+                    "thresholdBy": "THRESHOLD_BY_BACKGROUND",
+                    "thresholds": [
+                      {
+                        "from": 0,
+                        "color": "green"
+                      },
+                      {
+                        "from": 0.01,
+                        "color": "orange"
+                      },
+                      {
+                        "from": 0.05,
+                        "color": "red"
+                      }
+                    ],
+                    "arcDisplay": {
+                      "valueArc": false,
+                      "thresholdArc": false
+                    },
+                    "displaySeriesName": false
+                  }
+                }
+              },
+              {
+                "title": "Browser p75 (api/products*)",
+                "definition": {
+                  "gauge": {
+                    "query": {
+                      "dataprime": {
+                        "query": "source rum.events | filter $l.applicationName == 'Web-Client' && $d.event_context.type == 'network-request' && $d.network_request_context.fragments:string.startsWith('api/products') | aggregate percentile(0.75, $d.network_request_context.duration:number) as p75"
+                      }
+                    },
+                    "min": 0,
+                    "max": 5000,
+                    "unit": "UNIT_MILLISECONDS",
+                    "decimal": 0,
+                    "thresholdType": "THRESHOLD_TYPE_ABSOLUTE",
+                    "thresholdBy": "THRESHOLD_BY_BACKGROUND",
+                    "thresholds": [
+                      {
+                        "from": 0,
+                        "color": "green"
+                      },
+                      {
+                        "from": 1000,
+                        "color": "orange"
+                      },
+                      {
+                        "from": 2500,
+                        "color": "red"
+                      }
+                    ],
+                    "arcDisplay": {
+                      "valueArc": false,
+                      "thresholdArc": false
+                    },
+                    "displaySeriesName": false
+                  }
+                }
+              },
+              {
+                "title": "Product page LCP p75",
+                "definition": {
+                  "gauge": {
+                    "query": {
+                      "dataprime": {
+                        "query": "source rum.events | filter $l.applicationName == 'Web-Client' && $d.event_context.type == 'web-vitals' && $d.web_vitals_context.name == 'LCP' && $d.page_context.page_fragments:string == 'product/{productId}' | aggregate percentile(0.75, $d.web_vitals_context.value:number) as lcp_p75"
+                      }
+                    },
+                    "min": 0,
+                    "max": 8000,
+                    "unit": "UNIT_MILLISECONDS",
+                    "decimal": 0,
+                    "thresholdType": "THRESHOLD_TYPE_ABSOLUTE",
+                    "thresholdBy": "THRESHOLD_BY_BACKGROUND",
+                    "thresholds": [
+                      {
+                        "from": 0,
+                        "color": "green"
+                      },
+                      {
+                        "from": 2500,
+                        "color": "orange"
+                      },
+                      {
+                        "from": 4000,
+                        "color": "red"
+                      }
+                    ],
+                    "arcDisplay": {
+                      "valueArc": false,
+                      "thresholdArc": false
+                    },
+                    "displaySeriesName": false
+                  }
+                },
+                "description": "Largest Contentful Paint on /product/{productId} (good < 2.5s)"
+              }
+            ]
           },
-          "resultsPerPage": 10,
-          "rowStyle": "ROW_STYLE_ONE_LINE",
-          "columns": [
-           {
-            "field": "method"
-           },
-           {
-            "field": "grpc_status"
-           },
-           {
-            "field": "product_id"
-           },
-           {
-            "field": "errors"
-           }
-          ]
-         }
-        }
-       }
-      ]
-     }
+          {
+            "height": 19,
+            "widgets": [
+              {
+                "title": "Edge responses/s by route and status",
+                "definition": {
+                  "lineChart": {
+                    "queryDefinitions": [
+                      {
+                        "name": "rps",
+                        "seriesNameTemplate": "{{route}} {{status_code}}",
+                        "query": {
+                          "metrics": {
+                            "promqlQuery": "sum by (route, status_code) (sum_over_time(proxy_requests_cx_docs_total{route=~\"/api/products.*\"}[1m])) / 60"
+                          }
+                        }
+                      }
+                    ],
+                    "legend": {
+                      "isVisible": true,
+                      "columns": [
+                        "LEGEND_COLUMN_LAST",
+                        "LEGEND_COLUMN_MAX"
+                      ],
+                      "placement": "LEGEND_PLACEMENT_SIDE"
+                    },
+                    "stackedLine": "STACKED_LINE_ABSOLUTE"
+                  }
+                }
+              },
+              {
+                "title": "Browser p75 by path (RUM)",
+                "definition": {
+                  "lineChart": {
+                    "queryDefinitions": [
+                      {
+                        "name": "p75",
+                        "seriesNameTemplate": "{{path}}",
+                        "unit": "UNIT_MILLISECONDS",
+                        "query": {
+                          "dataprime": {
+                            "query": "source rum.events | filter $l.applicationName == 'Web-Client' && $d.event_context.type == 'network-request' && $d.network_request_context.fragments:string.startsWith('api/products') | groupby roundTime($m.timestamp, 5m) as timestamp, $d.network_request_context.fragments:string as path aggregate percentile(0.75, $d.network_request_context.duration:number) as p75"
+                          }
+                        }
+                      }
+                    ],
+                    "legend": {
+                      "isVisible": true,
+                      "columns": [
+                        "LEGEND_COLUMN_LAST",
+                        "LEGEND_COLUMN_MAX"
+                      ],
+                      "placement": "LEGEND_PLACEMENT_SIDE"
+                    }
+                  }
+                }
+              },
+              {
+                "title": "Product views by product",
+                "description": "Frontend product requests, enriched from the product-catalog lookup table",
+                "definition": {
+                  "horizontalBarChart": {
+                    "query": {
+                      "logs": {
+                        "luceneQuery": "attributes.service_name:frontend AND _exists_:product.product_name",
+                        "aggregation": {
+                          "type": "count"
+                        },
+                        "groupNamesFields": [
+                          {
+                            "keypath": [
+                              "product",
+                              "product_name"
+                            ],
+                            "scope": "DATASET_SCOPE_USER_DATA"
+                          }
+                        ],
+                        "stackedGroupNameField": {
+                          "keypath": [
+                            "product",
+                            "category"
+                          ],
+                          "scope": "DATASET_SCOPE_USER_DATA"
+                        }
+                      }
+                    },
+                    "sortBy": "SORT_BY_TYPE_VALUE",
+                    "maxBarsPerChart": 10
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "options": {
+          "name": "\ud83d\udc18 Database: astronomy-db (PostgreSQL)",
+          "description": "product-catalog's only dependency. Client-side database/sql metrics plus the astronomy-db container.",
+          "color": "SECTION_PREDEFINED_COLOR_PURPLE"
+        },
+        "rows": [
+          {
+            "height": 19,
+            "widgets": [
+              {
+                "title": "Query p95 by operation",
+                "definition": {
+                  "lineChart": {
+                    "queryDefinitions": [
+                      {
+                        "name": "p95",
+                        "seriesNameTemplate": "{{db_operation_name}}",
+                        "unit": "UNIT_MILLISECONDS",
+                        "query": {
+                          "metrics": {
+                            "promqlQuery": "histogram_quantile(0.95, sum by (db_operation_name, le) (rate(db_client_operation_duration_s_bucket{service_name=\"product-catalog\", db_operation_name=~\"sql[.](conn[.]query|rows|conn[.]begin_tx|conn[.]exec)\"}[5m]))) * 1000"
+                          }
+                        }
+                      }
+                    ],
+                    "legend": {
+                      "isVisible": true,
+                      "columns": [
+                        "LEGEND_COLUMN_LAST",
+                        "LEGEND_COLUMN_MAX"
+                      ],
+                      "placement": "LEGEND_PLACEMENT_SIDE"
+                    }
+                  }
+                }
+              },
+              {
+                "title": "DB errors by type (per s)",
+                "definition": {
+                  "lineChart": {
+                    "queryDefinitions": [
+                      {
+                        "name": "err",
+                        "seriesNameTemplate": "{{error_type}}",
+                        "colorScheme": "red",
+                        "query": {
+                          "metrics": {
+                            "promqlQuery": "sum by (error_type) (rate(db_client_operation_duration_s_count{service_name=\"product-catalog\", error_type!=\"\"}[5m])) > 0"
+                          }
+                        }
+                      }
+                    ],
+                    "legend": {
+                      "isVisible": true,
+                      "columns": [
+                        "LEGEND_COLUMN_LAST",
+                        "LEGEND_COLUMN_MAX"
+                      ],
+                      "placement": "LEGEND_PLACEMENT_SIDE"
+                    },
+                    "stackedLine": "STACKED_LINE_ABSOLUTE"
+                  }
+                },
+                "description": "ErrBadConn = the pool handed out a dead connection (astronomy-db restarted); net.OpError = couldn't connect at all"
+              },
+              {
+                "title": "Connection pool",
+                "definition": {
+                  "lineChart": {
+                    "queryDefinitions": [
+                      {
+                        "name": "open",
+                        "seriesNameTemplate": "{{status}} connections",
+                        "colorScheme": "cold",
+                        "query": {
+                          "metrics": {
+                            "promqlQuery": "sum by (status) (db_sql_connection_open{service_name=\"product-catalog\"})"
+                          }
+                        }
+                      },
+                      {
+                        "name": "wait",
+                        "seriesNameTemplate": "waits per min",
+                        "colorScheme": "red",
+                        "query": {
+                          "metrics": {
+                            "promqlQuery": "sum(rate(db_sql_connection_wait_total{service_name=\"product-catalog\"}[5m])) * 60"
+                          }
+                        }
+                      }
+                    ],
+                    "legend": {
+                      "isVisible": true,
+                      "columns": [
+                        "LEGEND_COLUMN_LAST",
+                        "LEGEND_COLUMN_MAX"
+                      ],
+                      "placement": "LEGEND_PLACEMENT_SIDE"
+                    }
+                  }
+                },
+                "description": "Pool size is unlimited (max_open 0). Waits mean every connection was busy."
+              }
+            ]
+          },
+          {
+            "height": 19,
+            "widgets": [
+              {
+                "title": "astronomy-db memory vs limit",
+                "definition": {
+                  "lineChart": {
+                    "queryDefinitions": [
+                      {
+                        "name": "mem",
+                        "seriesNameTemplate": "working set / limit",
+                        "unit": "UNIT_PERCENT_ZERO_ONE",
+                        "colorScheme": "severity",
+                        "query": {
+                          "metrics": {
+                            "promqlQuery": "max(container_memory_working_set_By{k8s_container_name=\"astronomy-db\"}) / max(k8s_container_memory_limit_By{k8s_container_name=\"astronomy-db\"})"
+                          }
+                        }
+                      }
+                    ],
+                    "legend": {
+                      "isVisible": true,
+                      "columns": [
+                        "LEGEND_COLUMN_LAST",
+                        "LEGEND_COLUMN_MAX"
+                      ],
+                      "placement": "LEGEND_PLACEMENT_SIDE"
+                    }
+                  }
+                }
+              },
+              {
+                "title": "astronomy-db CPU (cores)",
+                "definition": {
+                  "lineChart": {
+                    "queryDefinitions": [
+                      {
+                        "name": "cpu",
+                        "seriesNameTemplate": "cores",
+                        "colorScheme": "blue",
+                        "query": {
+                          "metrics": {
+                            "promqlQuery": "sum(rate(container_cpu_time_s_total{k8s_container_name=\"astronomy-db\"}[5m]))"
+                          }
+                        }
+                      }
+                    ],
+                    "legend": {
+                      "isVisible": true,
+                      "columns": [
+                        "LEGEND_COLUMN_LAST",
+                        "LEGEND_COLUMN_MAX"
+                      ],
+                      "placement": "LEGEND_PLACEMENT_SIDE"
+                    }
+                  }
+                }
+              },
+              {
+                "title": "Restarts (per 10 min)",
+                "definition": {
+                  "lineChart": {
+                    "queryDefinitions": [
+                      {
+                        "name": "restarts",
+                        "seriesNameTemplate": "{{k8s_container_name}}",
+                        "colorScheme": "red",
+                        "query": {
+                          "metrics": {
+                            "promqlQuery": "sum by (k8s_container_name) (increase(k8s_container_restarts__restart_{k8s_container_name=~\"product-catalog|astronomy-db\"}[10m]))"
+                          }
+                        }
+                      }
+                    ],
+                    "legend": {
+                      "isVisible": true,
+                      "columns": [
+                        "LEGEND_COLUMN_LAST",
+                        "LEGEND_COLUMN_MAX"
+                      ],
+                      "placement": "LEGEND_PLACEMENT_SIDE"
+                    }
+                  }
+                },
+                "description": "astronomy-db has been OOMKilled repeatedly; each restart shows up as DB errors above."
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "options": {
+          "name": "\u2699\ufe0f Go runtime",
+          "description": "The Go process inside product-catalog.",
+          "color": "SECTION_PREDEFINED_COLOR_CYAN"
+        },
+        "rows": [
+          {
+            "height": 19,
+            "widgets": [
+              {
+                "title": "Go memory vs GOMEMLIMIT",
+                "definition": {
+                  "lineChart": {
+                    "queryDefinitions": [
+                      {
+                        "name": "used",
+                        "seriesNameTemplate": "used (heap + stack)",
+                        "unit": "UNIT_BYTES_IEC",
+                        "colorScheme": "cold",
+                        "query": {
+                          "metrics": {
+                            "promqlQuery": "sum(go_memory_used_By{service_name=\"product-catalog\"})"
+                          }
+                        }
+                      },
+                      {
+                        "name": "limit",
+                        "seriesNameTemplate": "GOMEMLIMIT",
+                        "unit": "UNIT_BYTES_IEC",
+                        "colorScheme": "red",
+                        "query": {
+                          "metrics": {
+                            "promqlQuery": "max(go_memory_limit_By{service_name=\"product-catalog\"})"
+                          }
+                        }
+                      },
+                      {
+                        "name": "goal",
+                        "seriesNameTemplate": "GC goal",
+                        "unit": "UNIT_BYTES_IEC",
+                        "colorScheme": "green",
+                        "query": {
+                          "metrics": {
+                            "promqlQuery": "max(go_memory_gc_goal_By{service_name=\"product-catalog\"})"
+                          }
+                        }
+                      }
+                    ],
+                    "legend": {
+                      "isVisible": true,
+                      "columns": [
+                        "LEGEND_COLUMN_LAST",
+                        "LEGEND_COLUMN_MAX"
+                      ],
+                      "placement": "LEGEND_PLACEMENT_SIDE"
+                    }
+                  }
+                },
+                "description": "When used memory sits at GOMEMLIMIT the GC runs constantly and CPU goes to collection instead of requests."
+              },
+              {
+                "title": "Goroutines",
+                "definition": {
+                  "lineChart": {
+                    "queryDefinitions": [
+                      {
+                        "name": "g",
+                        "seriesNameTemplate": "goroutines",
+                        "colorScheme": "blue",
+                        "query": {
+                          "metrics": {
+                            "promqlQuery": "max(go_goroutine_count{service_name=\"product-catalog\"})"
+                          }
+                        }
+                      }
+                    ],
+                    "legend": {
+                      "isVisible": true,
+                      "columns": [
+                        "LEGEND_COLUMN_LAST",
+                        "LEGEND_COLUMN_MAX"
+                      ],
+                      "placement": "LEGEND_PLACEMENT_SIDE"
+                    }
+                  }
+                }
+              },
+              {
+                "title": "Allocation rate",
+                "definition": {
+                  "lineChart": {
+                    "queryDefinitions": [
+                      {
+                        "name": "alloc",
+                        "seriesNameTemplate": "bytes allocated/s",
+                        "unit": "UNIT_BYTES_IEC",
+                        "colorScheme": "cold",
+                        "query": {
+                          "metrics": {
+                            "promqlQuery": "sum(rate(go_memory_allocated_By_total{service_name=\"product-catalog\"}[5m]))"
+                          }
+                        }
+                      },
+                      {
+                        "name": "allocs",
+                        "seriesNameTemplate": "allocations/s",
+                        "colorScheme": "green",
+                        "query": {
+                          "metrics": {
+                            "promqlQuery": "sum(rate(go_memory_allocations_total{service_name=\"product-catalog\"}[5m]))"
+                          }
+                        }
+                      }
+                    ],
+                    "legend": {
+                      "isVisible": true,
+                      "columns": [
+                        "LEGEND_COLUMN_LAST",
+                        "LEGEND_COLUMN_MAX"
+                      ],
+                      "placement": "LEGEND_PLACEMENT_SIDE"
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "options": {
+          "name": "\u2638\ufe0f Kubernetes and logs",
+          "description": "Pod resources for the service and its database, and what the service is logging.",
+          "color": "SECTION_PREDEFINED_COLOR_ORANGE"
+        },
+        "rows": [
+          {
+            "height": 19,
+            "widgets": [
+              {
+                "title": "CPU (cores)",
+                "definition": {
+                  "lineChart": {
+                    "queryDefinitions": [
+                      {
+                        "name": "cpu",
+                        "seriesNameTemplate": "{{k8s_container_name}}",
+                        "query": {
+                          "metrics": {
+                            "promqlQuery": "sum by (k8s_container_name) (rate(container_cpu_time_s_total{k8s_container_name=~\"product-catalog|astronomy-db\"}[5m]))"
+                          }
+                        }
+                      }
+                    ],
+                    "legend": {
+                      "isVisible": true,
+                      "columns": [
+                        "LEGEND_COLUMN_LAST",
+                        "LEGEND_COLUMN_MAX"
+                      ],
+                      "placement": "LEGEND_PLACEMENT_SIDE"
+                    }
+                  }
+                }
+              },
+              {
+                "title": "Memory: % of limit",
+                "definition": {
+                  "lineChart": {
+                    "queryDefinitions": [
+                      {
+                        "name": "mem",
+                        "seriesNameTemplate": "{{k8s_container_name}}",
+                        "unit": "UNIT_PERCENT_ZERO_ONE",
+                        "query": {
+                          "metrics": {
+                            "promqlQuery": "max by (k8s_container_name) (container_memory_working_set_By{k8s_container_name=~\"product-catalog|astronomy-db\"}) / on (k8s_container_name) max by (k8s_container_name) (k8s_container_memory_limit_By{k8s_container_name=~\"product-catalog|astronomy-db\"})"
+                          }
+                        }
+                      }
+                    ],
+                    "legend": {
+                      "isVisible": true,
+                      "columns": [
+                        "LEGEND_COLUMN_LAST",
+                        "LEGEND_COLUMN_MAX"
+                      ],
+                      "placement": "LEGEND_PLACEMENT_SIDE"
+                    }
+                  }
+                }
+              },
+              {
+                "title": "Log volume by severity",
+                "definition": {
+                  "lineChart": {
+                    "queryDefinitions": [
+                      {
+                        "name": "logs",
+                        "seriesNameTemplate": "{{severity}}",
+                        "colorScheme": "severity",
+                        "query": {
+                          "dataprime": {
+                            "query": "source logs | filter $l.subsystemName == 'product-catalog' | groupby roundTime($m.timestamp, 1m) as timestamp, $m.severity:string as severity aggregate count() as logs"
+                          }
+                        }
+                      }
+                    ],
+                    "legend": {
+                      "isVisible": true,
+                      "columns": [
+                        "LEGEND_COLUMN_LAST",
+                        "LEGEND_COLUMN_MAX"
+                      ],
+                      "placement": "LEGEND_PLACEMENT_SIDE"
+                    },
+                    "stackedLine": "STACKED_LINE_ABSOLUTE"
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "height": 19,
+            "widgets": [
+              {
+                "title": "Recent warnings and errors",
+                "definition": {
+                  "dataTable": {
+                    "query": {
+                      "dataprime": {
+                        "query": "source logs | filter $l.subsystemName == 'product-catalog' && ($m.severity == WARNING || $m.severity == ERROR || $m.severity == CRITICAL) | orderby $m.timestamp desc | limit 50 | choose formatTimestamp($m.timestamp:timestamp, '%H:%M:%S') as time_utc, $m.severity:string as severity, $d.message as message, $d.attributes['exception.message'] as exception"
+                      }
+                    },
+                    "resultsPerPage": 10,
+                    "rowStyle": "ROW_STYLE_ONE_LINE",
+                    "columns": [
+                      {
+                        "field": "time_utc"
+                      },
+                      {
+                        "field": "severity"
+                      },
+                      {
+                        "field": "message"
+                      },
+                      {
+                        "field": "exception"
+                      }
+                    ]
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
     ]
-   },
-   {
-    "options": {
-     "name": "\ud83d\uded2 Shopper impact: edge and browser",
-     "description": "What the catalog's health means for people browsing: the /api/products routes at the proxy, and product pages in real browsers (RUM).",
-     "color": "SECTION_PREDEFINED_COLOR_MAGENTA"
-    },
-    "rows": [
-     {
-      "height": 12,
-      "widgets": [
-       {
-        "title": "Edge p95 (/api/products*)",
-        "definition": {
-         "gauge": {
-          "query": {
-           "metrics": {
-            "promqlQuery": "histogram_quantile(0.95, sum by (le) (sum_over_time(proxy_duration_ms_cx_bucket{route=~\"/api/products.*\"}[15m])))",
-            "aggregation": "AGGREGATION_LAST"
-           }
-          },
-          "min": 0,
-          "max": 5000,
-          "unit": "UNIT_MILLISECONDS",
-          "decimal": 0,
-          "thresholdType": "THRESHOLD_TYPE_ABSOLUTE",
-          "thresholdBy": "THRESHOLD_BY_BACKGROUND",
-          "thresholds": [
-           {
-            "from": 0,
-            "color": "green"
-           },
-           {
-            "from": 1000,
-            "color": "orange"
-           },
-           {
-            "from": 2500,
-            "color": "red"
-           }
-          ],
-          "arcDisplay": {
-           "valueArc": false,
-           "thresholdArc": false
-          },
-          "displaySeriesName": false
-         }
-        }
-       },
-       {
-        "title": "Edge 5xx share",
-        "definition": {
-         "gauge": {
-          "query": {
-           "metrics": {
-            "promqlQuery": "(sum(sum_over_time(proxy_requests_cx_docs_total{route=~\"/api/products.*\", status_code=~\"5..\"}[15m])) or vector(0)) / sum(sum_over_time(proxy_requests_cx_docs_total{route=~\"/api/products.*\"}[15m]))",
-            "aggregation": "AGGREGATION_LAST"
-           }
-          },
-          "min": 0,
-          "max": 0.2,
-          "unit": "UNIT_PERCENT_ZERO_ONE",
-          "decimal": 2,
-          "thresholdType": "THRESHOLD_TYPE_ABSOLUTE",
-          "thresholdBy": "THRESHOLD_BY_BACKGROUND",
-          "thresholds": [
-           {
-            "from": 0,
-            "color": "green"
-           },
-           {
-            "from": 0.01,
-            "color": "orange"
-           },
-           {
-            "from": 0.05,
-            "color": "red"
-           }
-          ],
-          "arcDisplay": {
-           "valueArc": false,
-           "thresholdArc": false
-          },
-          "displaySeriesName": false
-         }
-        }
-       },
-       {
-        "title": "Browser p75 (api/products*)",
-        "definition": {
-         "gauge": {
-          "query": {
-           "dataprime": {
-            "query": "source rum.events | filter $l.applicationName == 'Web-Client' && $d.event_context.type == 'network-request' && $d.network_request_context.fragments:string.startsWith('api/products') | aggregate percentile(0.75, $d.network_request_context.duration:number) as p75",
-            "timeFrame": {
-             "relative": "900s"
-            }
-           }
-          },
-          "min": 0,
-          "max": 5000,
-          "unit": "UNIT_MILLISECONDS",
-          "decimal": 0,
-          "thresholdType": "THRESHOLD_TYPE_ABSOLUTE",
-          "thresholdBy": "THRESHOLD_BY_BACKGROUND",
-          "thresholds": [
-           {
-            "from": 0,
-            "color": "green"
-           },
-           {
-            "from": 1000,
-            "color": "orange"
-           },
-           {
-            "from": 2500,
-            "color": "red"
-           }
-          ],
-          "arcDisplay": {
-           "valueArc": false,
-           "thresholdArc": false
-          },
-          "displaySeriesName": false
-         }
-        }
-       },
-       {
-        "title": "Product page LCP p75",
-        "definition": {
-         "gauge": {
-          "query": {
-           "dataprime": {
-            "query": "source rum.events | filter $l.applicationName == 'Web-Client' && $d.event_context.type == 'web-vitals' && $d.web_vitals_context.name == 'LCP' && $d.page_context.page_fragments:string == 'product/{productId}' | aggregate percentile(0.75, $d.web_vitals_context.value:number) as lcp_p75",
-            "timeFrame": {
-             "relative": "3600s"
-            }
-           }
-          },
-          "min": 0,
-          "max": 8000,
-          "unit": "UNIT_MILLISECONDS",
-          "decimal": 0,
-          "thresholdType": "THRESHOLD_TYPE_ABSOLUTE",
-          "thresholdBy": "THRESHOLD_BY_BACKGROUND",
-          "thresholds": [
-           {
-            "from": 0,
-            "color": "green"
-           },
-           {
-            "from": 2500,
-            "color": "orange"
-           },
-           {
-            "from": 4000,
-            "color": "red"
-           }
-          ],
-          "arcDisplay": {
-           "valueArc": false,
-           "thresholdArc": false
-          },
-          "displaySeriesName": false
-         }
-        },
-        "description": "Largest Contentful Paint on /product/{productId} (good < 2.5s), last hour"
-       }
-      ]
-     },
-     {
-      "height": 19,
-      "widgets": [
-       {
-        "title": "Edge responses/s by route and status",
-        "definition": {
-         "lineChart": {
-          "queryDefinitions": [
-           {
-            "name": "rps",
-            "seriesNameTemplate": "{{route}} {{status_code}}",
-            "query": {
-             "metrics": {
-              "promqlQuery": "sum by (route, status_code) (sum_over_time(proxy_requests_cx_docs_total{route=~\"/api/products.*\"}[1m])) / 60"
-             }
-            }
-           }
-          ],
-          "legend": {
-           "isVisible": true,
-           "columns": [
-            "LEGEND_COLUMN_LAST",
-            "LEGEND_COLUMN_MAX"
-           ],
-           "placement": "LEGEND_PLACEMENT_SIDE"
-          },
-          "stackedLine": "STACKED_LINE_ABSOLUTE"
-         }
-        }
-       },
-       {
-        "title": "Browser p75 by path (RUM)",
-        "definition": {
-         "lineChart": {
-          "queryDefinitions": [
-           {
-            "name": "p75",
-            "seriesNameTemplate": "{{path}}",
-            "unit": "UNIT_MILLISECONDS",
-            "query": {
-             "dataprime": {
-              "query": "source rum.events | filter $l.applicationName == 'Web-Client' && $d.event_context.type == 'network-request' && $d.network_request_context.fragments:string.startsWith('api/products') | groupby roundTime($m.timestamp, 5m) as timestamp, $d.network_request_context.fragments:string as path aggregate percentile(0.75, $d.network_request_context.duration:number) as p75"
-             }
-            }
-           }
-          ],
-          "legend": {
-           "isVisible": true,
-           "columns": [
-            "LEGEND_COLUMN_LAST",
-            "LEGEND_COLUMN_MAX"
-           ],
-           "placement": "LEGEND_PLACEMENT_SIDE"
-          }
-         }
-        }
-       },
-       {
-        "title": "Product views by product (1h)",
-        "description": "Frontend product requests, enriched from the product-catalog lookup table",
-        "definition": {
-         "horizontalBarChart": {
-          "query": {
-           "logs": {
-            "luceneQuery": "attributes.service_name:frontend AND _exists_:product.product_name",
-            "aggregation": {
-             "type": "count"
-            },
-            "groupNamesFields": [
-             {
-              "keypath": [
-               "product",
-               "product_name"
-              ],
-              "scope": "DATASET_SCOPE_USER_DATA"
-             }
-            ],
-            "stackedGroupNameField": {
-             "keypath": [
-              "product",
-              "category"
-             ],
-             "scope": "DATASET_SCOPE_USER_DATA"
-            }
-           }
-          },
-          "sortBy": "SORT_BY_TYPE_VALUE",
-          "maxBarsPerChart": 10
-         }
-        }
-       }
-      ]
-     }
-    ]
-   },
-   {
-    "options": {
-     "name": "\ud83d\udc18 Database: astronomy-db (PostgreSQL)",
-     "description": "product-catalog's only dependency. Client-side database/sql metrics plus the astronomy-db container.",
-     "color": "SECTION_PREDEFINED_COLOR_PURPLE"
-    },
-    "rows": [
-     {
-      "height": 19,
-      "widgets": [
-       {
-        "title": "Query p95 by operation",
-        "definition": {
-         "lineChart": {
-          "queryDefinitions": [
-           {
-            "name": "p95",
-            "seriesNameTemplate": "{{db_operation_name}}",
-            "unit": "UNIT_MILLISECONDS",
-            "query": {
-             "metrics": {
-              "promqlQuery": "histogram_quantile(0.95, sum by (db_operation_name, le) (rate(db_client_operation_duration_s_bucket{service_name=\"product-catalog\", db_operation_name=~\"sql[.](conn[.]query|rows|conn[.]begin_tx|conn[.]exec)\"}[5m]))) * 1000"
-             }
-            }
-           }
-          ],
-          "legend": {
-           "isVisible": true,
-           "columns": [
-            "LEGEND_COLUMN_LAST",
-            "LEGEND_COLUMN_MAX"
-           ],
-           "placement": "LEGEND_PLACEMENT_SIDE"
-          }
-         }
-        }
-       },
-       {
-        "title": "DB errors by type (per s)",
-        "definition": {
-         "lineChart": {
-          "queryDefinitions": [
-           {
-            "name": "err",
-            "seriesNameTemplate": "{{error_type}}",
-            "colorScheme": "red",
-            "query": {
-             "metrics": {
-              "promqlQuery": "sum by (error_type) (rate(db_client_operation_duration_s_count{service_name=\"product-catalog\", error_type!=\"\"}[5m])) > 0"
-             }
-            }
-           }
-          ],
-          "legend": {
-           "isVisible": true,
-           "columns": [
-            "LEGEND_COLUMN_LAST",
-            "LEGEND_COLUMN_MAX"
-           ],
-           "placement": "LEGEND_PLACEMENT_SIDE"
-          },
-          "stackedLine": "STACKED_LINE_ABSOLUTE"
-         }
-        },
-        "description": "ErrBadConn = the pool handed out a dead connection (astronomy-db restarted); net.OpError = couldn't connect at all"
-       },
-       {
-        "title": "Connection pool",
-        "definition": {
-         "lineChart": {
-          "queryDefinitions": [
-           {
-            "name": "open",
-            "seriesNameTemplate": "{{status}} connections",
-            "colorScheme": "cold",
-            "query": {
-             "metrics": {
-              "promqlQuery": "sum by (status) (db_sql_connection_open{service_name=\"product-catalog\"})"
-             }
-            }
-           },
-           {
-            "name": "wait",
-            "seriesNameTemplate": "waits per min",
-            "colorScheme": "red",
-            "query": {
-             "metrics": {
-              "promqlQuery": "sum(rate(db_sql_connection_wait_total{service_name=\"product-catalog\"}[5m])) * 60"
-             }
-            }
-           }
-          ],
-          "legend": {
-           "isVisible": true,
-           "columns": [
-            "LEGEND_COLUMN_LAST",
-            "LEGEND_COLUMN_MAX"
-           ],
-           "placement": "LEGEND_PLACEMENT_SIDE"
-          }
-         }
-        },
-        "description": "Pool size is unlimited (max_open 0). Waits mean every connection was busy."
-       }
-      ]
-     },
-     {
-      "height": 19,
-      "widgets": [
-       {
-        "title": "astronomy-db memory vs limit",
-        "definition": {
-         "lineChart": {
-          "queryDefinitions": [
-           {
-            "name": "mem",
-            "seriesNameTemplate": "working set / limit",
-            "unit": "UNIT_PERCENT_ZERO_ONE",
-            "colorScheme": "severity",
-            "query": {
-             "metrics": {
-              "promqlQuery": "max(container_memory_working_set_By{k8s_container_name=\"astronomy-db\"}) / max(k8s_container_memory_limit_By{k8s_container_name=\"astronomy-db\"})"
-             }
-            }
-           }
-          ],
-          "legend": {
-           "isVisible": true,
-           "columns": [
-            "LEGEND_COLUMN_LAST",
-            "LEGEND_COLUMN_MAX"
-           ],
-           "placement": "LEGEND_PLACEMENT_SIDE"
-          }
-         }
-        }
-       },
-       {
-        "title": "astronomy-db CPU (cores)",
-        "definition": {
-         "lineChart": {
-          "queryDefinitions": [
-           {
-            "name": "cpu",
-            "seriesNameTemplate": "cores",
-            "colorScheme": "blue",
-            "query": {
-             "metrics": {
-              "promqlQuery": "sum(rate(container_cpu_time_s_total{k8s_container_name=\"astronomy-db\"}[5m]))"
-             }
-            }
-           }
-          ],
-          "legend": {
-           "isVisible": true,
-           "columns": [
-            "LEGEND_COLUMN_LAST",
-            "LEGEND_COLUMN_MAX"
-           ],
-           "placement": "LEGEND_PLACEMENT_SIDE"
-          }
-         }
-        }
-       },
-       {
-        "title": "Restarts (per 10 min)",
-        "definition": {
-         "lineChart": {
-          "queryDefinitions": [
-           {
-            "name": "restarts",
-            "seriesNameTemplate": "{{k8s_container_name}}",
-            "colorScheme": "red",
-            "query": {
-             "metrics": {
-              "promqlQuery": "sum by (k8s_container_name) (increase(k8s_container_restarts__restart_{k8s_container_name=~\"product-catalog|astronomy-db\"}[10m]))"
-             }
-            }
-           }
-          ],
-          "legend": {
-           "isVisible": true,
-           "columns": [
-            "LEGEND_COLUMN_LAST",
-            "LEGEND_COLUMN_MAX"
-           ],
-           "placement": "LEGEND_PLACEMENT_SIDE"
-          }
-         }
-        },
-        "description": "astronomy-db has been OOMKilled repeatedly; each restart shows up as DB errors above."
-       }
-      ]
-     }
-    ]
-   },
-   {
-    "options": {
-     "name": "\u2699\ufe0f Go runtime",
-     "description": "The Go process inside product-catalog.",
-     "color": "SECTION_PREDEFINED_COLOR_CYAN"
-    },
-    "rows": [
-     {
-      "height": 19,
-      "widgets": [
-       {
-        "title": "Go memory vs GOMEMLIMIT",
-        "definition": {
-         "lineChart": {
-          "queryDefinitions": [
-           {
-            "name": "used",
-            "seriesNameTemplate": "used (heap + stack)",
-            "unit": "UNIT_BYTES_IEC",
-            "colorScheme": "cold",
-            "query": {
-             "metrics": {
-              "promqlQuery": "sum(go_memory_used_By{service_name=\"product-catalog\"})"
-             }
-            }
-           },
-           {
-            "name": "limit",
-            "seriesNameTemplate": "GOMEMLIMIT",
-            "unit": "UNIT_BYTES_IEC",
-            "colorScheme": "red",
-            "query": {
-             "metrics": {
-              "promqlQuery": "max(go_memory_limit_By{service_name=\"product-catalog\"})"
-             }
-            }
-           },
-           {
-            "name": "goal",
-            "seriesNameTemplate": "GC goal",
-            "unit": "UNIT_BYTES_IEC",
-            "colorScheme": "green",
-            "query": {
-             "metrics": {
-              "promqlQuery": "max(go_memory_gc_goal_By{service_name=\"product-catalog\"})"
-             }
-            }
-           }
-          ],
-          "legend": {
-           "isVisible": true,
-           "columns": [
-            "LEGEND_COLUMN_LAST",
-            "LEGEND_COLUMN_MAX"
-           ],
-           "placement": "LEGEND_PLACEMENT_SIDE"
-          }
-         }
-        },
-        "description": "When used memory sits at GOMEMLIMIT the GC runs constantly and CPU goes to collection instead of requests."
-       },
-       {
-        "title": "Goroutines",
-        "definition": {
-         "lineChart": {
-          "queryDefinitions": [
-           {
-            "name": "g",
-            "seriesNameTemplate": "goroutines",
-            "colorScheme": "blue",
-            "query": {
-             "metrics": {
-              "promqlQuery": "max(go_goroutine_count{service_name=\"product-catalog\"})"
-             }
-            }
-           }
-          ],
-          "legend": {
-           "isVisible": true,
-           "columns": [
-            "LEGEND_COLUMN_LAST",
-            "LEGEND_COLUMN_MAX"
-           ],
-           "placement": "LEGEND_PLACEMENT_SIDE"
-          }
-         }
-        }
-       },
-       {
-        "title": "Allocation rate",
-        "definition": {
-         "lineChart": {
-          "queryDefinitions": [
-           {
-            "name": "alloc",
-            "seriesNameTemplate": "bytes allocated/s",
-            "unit": "UNIT_BYTES_IEC",
-            "colorScheme": "cold",
-            "query": {
-             "metrics": {
-              "promqlQuery": "sum(rate(go_memory_allocated_By_total{service_name=\"product-catalog\"}[5m]))"
-             }
-            }
-           },
-           {
-            "name": "allocs",
-            "seriesNameTemplate": "allocations/s",
-            "colorScheme": "green",
-            "query": {
-             "metrics": {
-              "promqlQuery": "sum(rate(go_memory_allocations_total{service_name=\"product-catalog\"}[5m]))"
-             }
-            }
-           }
-          ],
-          "legend": {
-           "isVisible": true,
-           "columns": [
-            "LEGEND_COLUMN_LAST",
-            "LEGEND_COLUMN_MAX"
-           ],
-           "placement": "LEGEND_PLACEMENT_SIDE"
-          }
-         }
-        }
-       }
-      ]
-     }
-    ]
-   },
-   {
-    "options": {
-     "name": "\u2638\ufe0f Kubernetes and logs",
-     "description": "Pod resources for the service and its database, and what the service is logging.",
-     "color": "SECTION_PREDEFINED_COLOR_ORANGE"
-    },
-    "rows": [
-     {
-      "height": 19,
-      "widgets": [
-       {
-        "title": "CPU (cores)",
-        "definition": {
-         "lineChart": {
-          "queryDefinitions": [
-           {
-            "name": "cpu",
-            "seriesNameTemplate": "{{k8s_container_name}}",
-            "query": {
-             "metrics": {
-              "promqlQuery": "sum by (k8s_container_name) (rate(container_cpu_time_s_total{k8s_container_name=~\"product-catalog|astronomy-db\"}[5m]))"
-             }
-            }
-           }
-          ],
-          "legend": {
-           "isVisible": true,
-           "columns": [
-            "LEGEND_COLUMN_LAST",
-            "LEGEND_COLUMN_MAX"
-           ],
-           "placement": "LEGEND_PLACEMENT_SIDE"
-          }
-         }
-        }
-       },
-       {
-        "title": "Memory: % of limit",
-        "definition": {
-         "lineChart": {
-          "queryDefinitions": [
-           {
-            "name": "mem",
-            "seriesNameTemplate": "{{k8s_container_name}}",
-            "unit": "UNIT_PERCENT_ZERO_ONE",
-            "query": {
-             "metrics": {
-              "promqlQuery": "max by (k8s_container_name) (container_memory_working_set_By{k8s_container_name=~\"product-catalog|astronomy-db\"}) / on (k8s_container_name) max by (k8s_container_name) (k8s_container_memory_limit_By{k8s_container_name=~\"product-catalog|astronomy-db\"})"
-             }
-            }
-           }
-          ],
-          "legend": {
-           "isVisible": true,
-           "columns": [
-            "LEGEND_COLUMN_LAST",
-            "LEGEND_COLUMN_MAX"
-           ],
-           "placement": "LEGEND_PLACEMENT_SIDE"
-          }
-         }
-        }
-       },
-       {
-        "title": "Log volume by severity",
-        "definition": {
-         "lineChart": {
-          "queryDefinitions": [
-           {
-            "name": "logs",
-            "seriesNameTemplate": "{{severity}}",
-            "colorScheme": "severity",
-            "query": {
-             "dataprime": {
-              "query": "source logs | filter $l.subsystemName == 'product-catalog' | groupby roundTime($m.timestamp, 1m) as timestamp, $m.severity:string as severity aggregate count() as logs"
-             }
-            }
-           }
-          ],
-          "legend": {
-           "isVisible": true,
-           "columns": [
-            "LEGEND_COLUMN_LAST",
-            "LEGEND_COLUMN_MAX"
-           ],
-           "placement": "LEGEND_PLACEMENT_SIDE"
-          },
-          "stackedLine": "STACKED_LINE_ABSOLUTE"
-         }
-        }
-       }
-      ]
-     },
-     {
-      "height": 19,
-      "widgets": [
-       {
-        "title": "Recent warnings and errors",
-        "definition": {
-         "dataTable": {
-          "query": {
-           "dataprime": {
-            "query": "source logs | filter $l.subsystemName == 'product-catalog' && ($m.severity == WARNING || $m.severity == ERROR || $m.severity == CRITICAL) | orderby $m.timestamp desc | limit 50 | choose formatTimestamp($m.timestamp, '%H:%M:%S') as time_utc, $m.severity:string as severity, $d.message as message, $d.attributes['exception.message'] as exception",
-            "timeFrame": {
-             "relative": "3600s"
-            }
-           }
-          },
-          "resultsPerPage": 10,
-          "rowStyle": "ROW_STYLE_ONE_LINE",
-          "columns": [
-           {
-            "field": "time_utc"
-           },
-           {
-            "field": "severity"
-           },
-           {
-            "field": "message"
-           },
-           {
-            "field": "exception"
-           }
-          ]
-         }
-        }
-       }
-      ]
-     }
-    ]
-   }
-  ]
- },
- "id": "iPpxRYWcRDpldWJ4FDevT"
+  },
+  "id": "iPpxRYWcRDpldWJ4FDevT"
 }

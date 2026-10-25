@@ -1,15 +1,15 @@
 {
   "id": "EpGYoQkqLthy2FpVZJ2Y4",
-  "name": "Web and API health",
-  "description": "HTTP and gRPC traffic: volume, errors, latency and payload sizes. Edge HTTP comes from Envoy access logs (proxy_requests Events2Metric, includes request/response bytes); service-level HTTP and gRPC come from span metrics (100% of calls, before trace sampling). gRPC methods are normalized in the collector to 'oteldemo.<Service>/<Method>' whatever the SDK.",
+  "name": "Requests",
+  "description": "Do calls succeed, and how fast? Synchronous HTTP and gRPC calls, by the four signals. Edge HTTP comes from Envoy access logs (proxy_requests Events2Metric, includes request/response bytes); service-level HTTP and gRPC come from span metrics (100% of calls, before trace sampling). gRPC methods are normalized in the collector to 'oteldemo.<Service>/<Method>' whatever the SDK.",
   "relativeTimeFrame": "10800s",
   "autoRefresh": "one_minute",
   "layout": {
     "sections": [
       {
         "options": {
-          "name": "At a glance (last 15 min)",
-          "description": "Edge = what browsers and API clients see at the proxy. gRPC = calls between backend services.",
+          "name": "Four signals (last 15 min)",
+          "description": "Left to right: errors, latency, saturation, throughput. Top row: the edge, what browsers and API clients see at the proxy. Bottom row: gRPC calls between backend services (no saturation tile: the SDKs report no in-flight or queue metrics).",
           "color": "SECTION_PREDEFINED_COLOR_GREEN"
         },
         "rows": [
@@ -17,37 +17,7 @@
             "height": 12,
             "widgets": [
               {
-                "title": "Edge requests/s",
-                "definition": {
-                  "gauge": {
-                    "query": {
-                      "metrics": {
-                        "promqlQuery": "sum(sum_over_time(proxy_requests_cx_docs_total[15m])) / 900",
-                        "aggregation": "AGGREGATION_LAST"
-                      }
-                    },
-                    "min": 0,
-                    "max": 100,
-                    "unit": "UNIT_NUMBER",
-                    "decimal": 1,
-                    "thresholdType": "THRESHOLD_TYPE_ABSOLUTE",
-                    "thresholdBy": "THRESHOLD_BY_BACKGROUND",
-                    "thresholds": [
-                      {
-                        "from": 0,
-                        "color": "green"
-                      }
-                    ],
-                    "arcDisplay": {
-                      "valueArc": false,
-                      "thresholdArc": false
-                    },
-                    "displaySeriesName": false
-                  }
-                }
-              },
-              {
-                "title": "Edge 5xx rate",
+                "title": "Errors \u00b7 Edge 5xx rate",
                 "definition": {
                   "gauge": {
                     "query": {
@@ -85,7 +55,7 @@
                 }
               },
               {
-                "title": "Edge p95 latency",
+                "title": "Latency \u00b7 Edge p95",
                 "definition": {
                   "gauge": {
                     "query": {
@@ -123,12 +93,51 @@
                 }
               },
               {
-                "title": "gRPC calls/s",
+                "title": "Saturation \u00b7 Edge upstream timeouts and failures",
                 "definition": {
                   "gauge": {
                     "query": {
                       "metrics": {
-                        "promqlQuery": "sum(rate(calls_total{span_kind=\"SPAN_KIND_SERVER\", span_name=~\"oteldemo[.].+Service/.+\"}[15m]))",
+                        "promqlQuery": "(sum(sum_over_time(proxy_requests_cx_docs_total{response_flags=~\".*(UT|UF|UC|UO|URX).*\"}[15m])) or vector(0)) / sum(sum_over_time(proxy_requests_cx_docs_total[15m]))",
+                        "aggregation": "AGGREGATION_LAST"
+                      }
+                    },
+                    "min": 0,
+                    "max": 0.05,
+                    "unit": "UNIT_PERCENT_ZERO_ONE",
+                    "decimal": 2,
+                    "thresholdType": "THRESHOLD_TYPE_ABSOLUTE",
+                    "thresholdBy": "THRESHOLD_BY_BACKGROUND",
+                    "thresholds": [
+                      {
+                        "from": 0,
+                        "color": "green"
+                      },
+                      {
+                        "from": 0.001,
+                        "color": "orange"
+                      },
+                      {
+                        "from": 0.01,
+                        "color": "red"
+                      }
+                    ],
+                    "arcDisplay": {
+                      "valueArc": false,
+                      "thresholdArc": false
+                    },
+                    "displaySeriesName": false
+                  }
+                },
+                "description": "Share of edge requests Envoy flagged UT (upstream timeout), UF (connect failure), UC (connection reset), UO (overflow) or URX (retries exhausted): backends that can't keep up"
+              },
+              {
+                "title": "Throughput \u00b7 Edge requests/s",
+                "definition": {
+                  "gauge": {
+                    "query": {
+                      "metrics": {
+                        "promqlQuery": "sum(sum_over_time(proxy_requests_cx_docs_total[15m])) / 900",
                         "aggregation": "AGGREGATION_LAST"
                       }
                     },
@@ -151,9 +160,14 @@
                     "displaySeriesName": false
                   }
                 }
-              },
+              }
+            ]
+          },
+          {
+            "height": 12,
+            "widgets": [
               {
-                "title": "gRPC error rate",
+                "title": "Errors \u00b7 gRPC error rate",
                 "definition": {
                   "gauge": {
                     "query": {
@@ -191,7 +205,7 @@
                 }
               },
               {
-                "title": "gRPC p95 latency",
+                "title": "Latency \u00b7 gRPC p95",
                 "definition": {
                   "gauge": {
                     "query": {
@@ -218,6 +232,36 @@
                       {
                         "from": 1000,
                         "color": "red"
+                      }
+                    ],
+                    "arcDisplay": {
+                      "valueArc": false,
+                      "thresholdArc": false
+                    },
+                    "displaySeriesName": false
+                  }
+                }
+              },
+              {
+                "title": "Throughput \u00b7 gRPC calls/s",
+                "definition": {
+                  "gauge": {
+                    "query": {
+                      "metrics": {
+                        "promqlQuery": "sum(rate(calls_total{span_kind=\"SPAN_KIND_SERVER\", span_name=~\"oteldemo[.].+Service/.+\"}[15m]))",
+                        "aggregation": "AGGREGATION_LAST"
+                      }
+                    },
+                    "min": 0,
+                    "max": 100,
+                    "unit": "UNIT_NUMBER",
+                    "decimal": 1,
+                    "thresholdType": "THRESHOLD_TYPE_ABSOLUTE",
+                    "thresholdBy": "THRESHOLD_BY_BACKGROUND",
+                    "thresholds": [
+                      {
+                        "from": 0,
+                        "color": "green"
                       }
                     ],
                     "arcDisplay": {
@@ -771,14 +815,14 @@
             "height": 19,
             "widgets": [
               {
-                "title": "Failed outbound gRPC calls (caller → method, per s)",
+                "title": "Failed outbound gRPC calls (caller \u2192 method, per s)",
                 "description": "Client-side view: which service saw which dependency fail",
                 "definition": {
                   "lineChart": {
                     "queryDefinitions": [
                       {
                         "name": "failed",
-                        "seriesNameTemplate": "{{service_name}} → {{span_name}}",
+                        "seriesNameTemplate": "{{service_name}} \u2192 {{span_name}}",
                         "query": {
                           "metrics": {
                             "promqlQuery": "sum by (service_name, span_name) (rate(calls_total{span_kind=\"SPAN_KIND_CLIENT\", span_name=~\"oteldemo[.].+Service/.+\", status_code=\"STATUS_CODE_ERROR\"}[5m]))"

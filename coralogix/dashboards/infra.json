@@ -1,7 +1,7 @@
 {
   "id": "qzoR6PmYBR2f9ZqFJkP13",
-  "name": "Infrastructure health",
-  "description": "Is the cluster healthy, and if not, which workload is under pressure? Kubernetes (kubelet, cluster, cAdvisor), node host metrics, the Coralogix telemetry pipeline itself, and Kafka.",
+  "name": "Infra",
+  "description": "Is the platform healthy? Nodes, pods and container runtimes (kubelet, cluster, cAdvisor, node host metrics, including the Kafka and PostgreSQL pods) and the Coralogix telemetry pipeline itself. Kafka topic health (lag, message age) is on the Workflows dashboard.",
   "relativeTimeFrame": "3600s",
   "autoRefresh": "one_minute",
   "layout": {
@@ -9,7 +9,7 @@
       {
         "options": {
           "name": "Cluster at a glance",
-          "description": "Green = nothing to do. Any amber/red tile tells you which section below to open.",
+          "description": "Top row: errors (anything not ready or restarting). Bottom row: saturation (how close the node and containers are to their limits). Green = nothing to do; any amber or red tile names the section below to open.",
           "color": "SECTION_PREDEFINED_COLOR_GREEN"
         },
         "rows": [
@@ -17,7 +17,7 @@
             "height": 12,
             "widgets": [
               {
-                "title": "Node ready",
+                "title": "Errors \u00b7 Node ready",
                 "description": "k8s_node_condition_ready (1 = Ready)",
                 "definition": {
                   "gauge": {
@@ -53,7 +53,7 @@
                 }
               },
               {
-                "title": "Unavailable replicas",
+                "title": "Errors \u00b7 Unavailable replicas",
                 "description": "Desired minus available pods across all deployments",
                 "definition": {
                   "gauge": {
@@ -87,7 +87,7 @@
                 }
               },
               {
-                "title": "Containers not ready",
+                "title": "Errors \u00b7 Containers not ready",
                 "description": "Containers failing their readiness probe",
                 "definition": {
                   "gauge": {
@@ -121,7 +121,7 @@
                 }
               },
               {
-                "title": "Container restarts (1h)",
+                "title": "Errors \u00b7 Container restarts (1h)",
                 "description": "Restarts across all containers in the last hour",
                 "definition": {
                   "gauge": {
@@ -165,7 +165,7 @@
             "height": 12,
             "widgets": [
               {
-                "title": "Node CPU",
+                "title": "Saturation \u00b7 Node CPU",
                 "description": "Host CPU busy (1 - idle), agent host metrics",
                 "definition": {
                   "gauge": {
@@ -202,7 +202,7 @@
                 }
               },
               {
-                "title": "Node memory",
+                "title": "Saturation \u00b7 Node memory",
                 "description": "Host memory used (excludes page cache)",
                 "definition": {
                   "gauge": {
@@ -239,7 +239,7 @@
                 }
               },
               {
-                "title": "Node disk",
+                "title": "Saturation \u00b7 Node disk",
                 "description": "Node filesystem used / capacity (kubelet)",
                 "definition": {
                   "gauge": {
@@ -276,7 +276,7 @@
                 }
               },
               {
-                "title": "Containers > 90% of memory limit",
+                "title": "Saturation \u00b7 Containers > 90% of memory limit",
                 "description": "Working set over 90% of the container's limit: next in line for OOMKill",
                 "definition": {
                   "gauge": {
@@ -861,90 +861,6 @@
                       "columns": [
                         "LEGEND_COLUMN_LAST",
                         "LEGEND_COLUMN_AVG"
-                      ],
-                      "placement": "LEGEND_PLACEMENT_BOTTOM"
-                    }
-                  }
-                }
-              }
-            ]
-          }
-        ]
-      },
-      {
-        "options": {
-          "name": "Kafka (order pipeline)",
-          "description": "checkout publishes orders; accounting and fraud-detection consume them. Lag growing = orders processed late.",
-          "color": "SECTION_PREDEFINED_COLOR_CYAN"
-        },
-        "rows": [
-          {
-            "height": 19,
-            "widgets": [
-              {
-                "title": "Consumer lag (max records)",
-                "definition": {
-                  "lineChart": {
-                    "queryDefinitions": [
-                      {
-                        "name": "lag",
-                        "query": {
-                          "metrics": {
-                            "promqlQuery": "max by (service_name) (kafka_consumer_records_lag_max)"
-                          }
-                        },
-                        "seriesNameTemplate": "{{service_name}}"
-                      }
-                    ],
-                    "legend": {
-                      "isVisible": true,
-                      "columns": [
-                        "LEGEND_COLUMN_LAST",
-                        "LEGEND_COLUMN_MAX"
-                      ],
-                      "placement": "LEGEND_PLACEMENT_BOTTOM"
-                    }
-                  }
-                }
-              },
-              {
-                "title": "Broker failed requests / partitions unhealthy",
-                "definition": {
-                  "lineChart": {
-                    "queryDefinitions": [
-                      {
-                        "name": "failed requests/s",
-                        "query": {
-                          "metrics": {
-                            "promqlQuery": "sum(rate(kafka_request_failed_total[5m]))"
-                          }
-                        },
-                        "seriesNameTemplate": "failed requests/s"
-                      },
-                      {
-                        "name": "under-replicated partitions",
-                        "query": {
-                          "metrics": {
-                            "promqlQuery": "sum(kafka_partition_underReplicated)"
-                          }
-                        },
-                        "seriesNameTemplate": "under-replicated partitions"
-                      },
-                      {
-                        "name": "offline partitions",
-                        "query": {
-                          "metrics": {
-                            "promqlQuery": "sum(kafka_partition_offline)"
-                          }
-                        },
-                        "seriesNameTemplate": "offline partitions"
-                      }
-                    ],
-                    "legend": {
-                      "isVisible": true,
-                      "columns": [
-                        "LEGEND_COLUMN_LAST",
-                        "LEGEND_COLUMN_MAX"
                       ],
                       "placement": "LEGEND_PLACEMENT_BOTTOM"
                     }
