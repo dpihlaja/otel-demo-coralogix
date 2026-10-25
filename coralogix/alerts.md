@@ -4,6 +4,7 @@ No notification destinations yet; incidents show under Alerts → Incidents.
 
 | Alert | ID | Priority | Type | Fires when |
 |---|---|---|---|---|
+| Infra: cluster not reporting | `e71dcb39-520d-42d6-9947-6f316d81870c` | P1 | metric | no node has reported readiness for 5 min (cluster or telemetry down) |
 | Business: no orders in 15 minutes | `6b02ec46-470c-479e-aacb-44db0d89110d` | P1 | metric | `shop_orders` count < 1 over 15 min |
 | Business: checkout failure rate over 5% | `4f5f5e02-86a6-40fe-8009-581cf2dc6334` | P2 | metric | PlaceOrder error share > 5% over 10 min |
 | HTTP error ratio by route (4xx+5xx) | `fb437e4b-4f9b-438c-9d87-4e0d361560e9` | P2 | metric | > 5% of a route's edge requests return 4xx/5xx for all of the last 5 min |
@@ -15,6 +16,9 @@ No notification destinations yet; incidents show under Alerts → Incidents.
 Queries:
 
 ```promql
+# Infra: cluster not reporting (vector(0) so silence is 0, not no data)
+count(max_over_time(k8s_node_condition_ready[5m])) or vector(0)
+
 # Business: orders in the last 15 min (vector(0) so "no orders" is 0, not no data)
 sum(sum_over_time(shop_orders_cx_docs_total[15m])) or vector(0)
 

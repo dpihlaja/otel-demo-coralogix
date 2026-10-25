@@ -17,7 +17,7 @@ Account: <https://dpihlaja.app.cx498.coralogix.com> · Deck: [Coralogix evaluati
 | Events2Metrics | [Data Flow → Events2Metrics](https://dpihlaja.app.cx498.coralogix.com/tco/metrics) (`shop_orders`, `proxy_requests`) | [`coralogix/events2metrics-and-slos.md`](coralogix/events2metrics-and-slos.md) |
 | SLOs | [SLO Center](https://dpihlaja.app.cx498.coralogix.com/slo) | [`coralogix/events2metrics-and-slos.md`](coralogix/events2metrics-and-slos.md) |
 | Dashboards | One per pillar, each opening on errors · latency · saturation · throughput: [Infra](https://dpihlaja.app.cx498.coralogix.com/dashboards/qzoR6PmYBR2f9ZqFJkP13) · [Requests](https://dpihlaja.app.cx498.coralogix.com/dashboards/EpGYoQkqLthy2FpVZJ2Y4) · [Workflows](https://dpihlaja.app.cx498.coralogix.com/dashboards/pbJSJ5KjkrgfW7cMhxPf2) · [Experience](https://dpihlaja.app.cx498.coralogix.com/dashboards/6Zv9SC5Su14DsfLpwOWyk) · [Business](https://dpihlaja.app.cx498.coralogix.com/dashboards/lVBBrXTKXPJxtIowPSaoj); plus a team slice, [Team Catalog: product-catalog](https://dpihlaja.app.cx498.coralogix.com/dashboards/iPpxRYWcRDpldWJ4FDevT) | `coralogix/dashboards/*.json` |
-| Alerts | [Alerts](https://dpihlaja.app.cx498.coralogix.com/alerts) (7) | [`coralogix/alerts.md`](coralogix/alerts.md) |
+| Alerts | [Alerts](https://dpihlaja.app.cx498.coralogix.com/alerts) (8) | [`coralogix/alerts.md`](coralogix/alerts.md) |
 | Written reflection | [Coralogix Onboarding Writeup](https://docs.google.com/document/d/158UCAPmFUB9eVdJbbFzXHzGEQMc7br7Ujm4qNxMpEmw/edit?usp=sharing) | — |
 
 ## Layout
@@ -121,7 +121,7 @@ flowchart LR
   rum --> dash
 
   metrics --> slo["SLOs<br/>checkout, edge, storefront p95"]
-  metrics --> alerts["Alerts<br/>6 metric, 1 logs ratio"]
+  metrics --> alerts["Alerts<br/>7 metric, 1 logs ratio"]
   logs --> alerts
   slo -. "next: burn-rate alerts" .-> alerts
 ```
