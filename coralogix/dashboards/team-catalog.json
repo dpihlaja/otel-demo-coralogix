@@ -25,12 +25,12 @@
                 }
               },
               {
-                "title": "Method health (error rate, 15 min)",
+                "title": "Method health (error rate)",
                 "definition": {
                   "hexagon": {
                     "query": {
                       "metrics": {
-                        "promqlQuery": "sum by (method) (label_replace((sum by (span_name) (increase(calls_total{service_name=\"product-catalog\", span_kind=\"SPAN_KIND_SERVER\", span_name=~\"oteldemo[.]ProductCatalogService/.+\", status_code=\"STATUS_CODE_ERROR\"}[15m])) or 0 * sum by (span_name) (increase(calls_total{service_name=\"product-catalog\", span_kind=\"SPAN_KIND_SERVER\", span_name=~\"oteldemo[.]ProductCatalogService/.+\"}[15m]))) / sum by (span_name) (increase(calls_total{service_name=\"product-catalog\", span_kind=\"SPAN_KIND_SERVER\", span_name=~\"oteldemo[.]ProductCatalogService/.+\"}[15m])), \"method\", \"$1\", \"span_name\", \"oteldemo[.]ProductCatalogService/(.+)\"))",
+                        "promqlQuery": "sum by (method) (label_replace((sum by (span_name) (increase(calls_total{service_name=\"product-catalog\", span_kind=\"SPAN_KIND_SERVER\", span_name=~\"oteldemo[.]ProductCatalogService/.+\", status_code=\"STATUS_CODE_ERROR\"}[${__range}])) or 0 * sum by (span_name) (increase(calls_total{service_name=\"product-catalog\", span_kind=\"SPAN_KIND_SERVER\", span_name=~\"oteldemo[.]ProductCatalogService/.+\"}[${__range}]))) / sum by (span_name) (increase(calls_total{service_name=\"product-catalog\", span_kind=\"SPAN_KIND_SERVER\", span_name=~\"oteldemo[.]ProductCatalogService/.+\"}[${__range}])), \"method\", \"$1\", \"span_name\", \"oteldemo[.]ProductCatalogService/(.+)\"))",
                         "promqlQueryType": "PROM_QL_QUERY_TYPE_INSTANT",
                         "aggregation": "AGGREGATION_LAST"
                       }
@@ -64,12 +64,12 @@
                 "description": "One tile per gRPC method, colored by error rate"
               },
               {
-                "title": "Caller health (errors they see, 15 min)",
+                "title": "Caller health (errors they see)",
                 "definition": {
                   "hexagon": {
                     "query": {
                       "metrics": {
-                        "promqlQuery": "(sum by (service_name) (increase(calls_total{span_kind=\"SPAN_KIND_CLIENT\", span_name=~\"oteldemo[.]ProductCatalogService/.+\", status_code=\"STATUS_CODE_ERROR\"}[15m])) or 0 * sum by (service_name) (increase(calls_total{span_kind=\"SPAN_KIND_CLIENT\", span_name=~\"oteldemo[.]ProductCatalogService/.+\"}[15m]))) / sum by (service_name) (increase(calls_total{span_kind=\"SPAN_KIND_CLIENT\", span_name=~\"oteldemo[.]ProductCatalogService/.+\"}[15m]))",
+                        "promqlQuery": "(sum by (service_name) (increase(calls_total{span_kind=\"SPAN_KIND_CLIENT\", span_name=~\"oteldemo[.]ProductCatalogService/.+\", status_code=\"STATUS_CODE_ERROR\"}[${__range}])) or 0 * sum by (service_name) (increase(calls_total{span_kind=\"SPAN_KIND_CLIENT\", span_name=~\"oteldemo[.]ProductCatalogService/.+\"}[${__range}]))) / sum by (service_name) (increase(calls_total{span_kind=\"SPAN_KIND_CLIENT\", span_name=~\"oteldemo[.]ProductCatalogService/.+\"}[${__range}]))",
                         "promqlQueryType": "PROM_QL_QUERY_TYPE_INSTANT",
                         "aggregation": "AGGREGATION_LAST"
                       }
@@ -108,8 +108,8 @@
       },
       {
         "options": {
-          "name": "Golden signals (last 15 min)",
-          "description": "Traffic, errors, latency and saturation for the service itself.",
+          "name": "Golden signals",
+          "description": "Traffic, errors and latency over the dashboard's time range, and memory now, for the service itself.",
           "color": "SECTION_PREDEFINED_COLOR_GREEN"
         },
         "rows": [
@@ -122,7 +122,7 @@
                   "gauge": {
                     "query": {
                       "metrics": {
-                        "promqlQuery": "sum(rate(calls_total{service_name=\"product-catalog\", span_kind=\"SPAN_KIND_SERVER\", span_name=~\"oteldemo[.]ProductCatalogService/.+\"}[15m]))",
+                        "promqlQuery": "sum(rate(calls_total{service_name=\"product-catalog\", span_kind=\"SPAN_KIND_SERVER\", span_name=~\"oteldemo[.]ProductCatalogService/.+\"}[${__range}]))",
                         "aggregation": "AGGREGATION_LAST"
                       }
                     },
@@ -160,7 +160,7 @@
                   "gauge": {
                     "query": {
                       "metrics": {
-                        "promqlQuery": "(sum(increase(calls_total{service_name=\"product-catalog\", span_kind=\"SPAN_KIND_SERVER\", span_name=~\"oteldemo[.]ProductCatalogService/.+\", status_code=\"STATUS_CODE_ERROR\"}[15m])) or vector(0)) / sum(increase(calls_total{service_name=\"product-catalog\", span_kind=\"SPAN_KIND_SERVER\", span_name=~\"oteldemo[.]ProductCatalogService/.+\"}[15m]))",
+                        "promqlQuery": "(sum(increase(calls_total{service_name=\"product-catalog\", span_kind=\"SPAN_KIND_SERVER\", span_name=~\"oteldemo[.]ProductCatalogService/.+\", status_code=\"STATUS_CODE_ERROR\"}[${__range}])) or vector(0)) / sum(increase(calls_total{service_name=\"product-catalog\", span_kind=\"SPAN_KIND_SERVER\", span_name=~\"oteldemo[.]ProductCatalogService/.+\"}[${__range}]))",
                         "aggregation": "AGGREGATION_LAST"
                       }
                     },
@@ -198,7 +198,7 @@
                   "gauge": {
                     "query": {
                       "metrics": {
-                        "promqlQuery": "histogram_quantile(0.95, sum by (le) (rate(duration_ms_bucket{service_name=\"product-catalog\", span_kind=\"SPAN_KIND_SERVER\", span_name=\"oteldemo.ProductCatalogService/GetProduct\"}[15m])))",
+                        "promqlQuery": "histogram_quantile(0.95, sum by (le) (rate(duration_ms_bucket{service_name=\"product-catalog\", span_kind=\"SPAN_KIND_SERVER\", span_name=\"oteldemo.ProductCatalogService/GetProduct\"}[${__range}])))",
                         "aggregation": "AGGREGATION_LAST"
                       }
                     },
@@ -236,7 +236,7 @@
                   "gauge": {
                     "query": {
                       "metrics": {
-                        "promqlQuery": "histogram_quantile(0.95, sum by (le) (rate(duration_ms_bucket{service_name=\"product-catalog\", span_kind=\"SPAN_KIND_SERVER\", span_name=\"oteldemo.ProductCatalogService/ListProducts\"}[15m])))",
+                        "promqlQuery": "histogram_quantile(0.95, sum by (le) (rate(duration_ms_bucket{service_name=\"product-catalog\", span_kind=\"SPAN_KIND_SERVER\", span_name=\"oteldemo.ProductCatalogService/ListProducts\"}[${__range}])))",
                         "aggregation": "AGGREGATION_LAST"
                       }
                     },
@@ -274,7 +274,7 @@
                   "gauge": {
                     "query": {
                       "metrics": {
-                        "promqlQuery": "histogram_quantile(0.95, sum by (le) (rate(db_client_operation_duration_s_bucket{service_name=\"product-catalog\", db_operation_name=\"sql.conn.query\"}[15m]))) * 1000",
+                        "promqlQuery": "histogram_quantile(0.95, sum by (le) (rate(db_client_operation_duration_s_bucket{service_name=\"product-catalog\", db_operation_name=\"sql.conn.query\"}[${__range}]))) * 1000",
                         "aggregation": "AGGREGATION_LAST"
                       }
                     },
@@ -387,12 +387,12 @@
                 }
               },
               {
-                "title": "Traffic share by caller (1h)",
+                "title": "Traffic share by caller",
                 "definition": {
                   "pieChart": {
                     "query": {
                       "metrics": {
-                        "promqlQuery": "sum by (service_name) (increase(calls_total{span_kind=\"SPAN_KIND_CLIENT\", span_name=~\"oteldemo[.]ProductCatalogService/.+\"}[1h]))",
+                        "promqlQuery": "sum by (service_name) (increase(calls_total{span_kind=\"SPAN_KIND_CLIENT\", span_name=~\"oteldemo[.]ProductCatalogService/.+\"}[${__range}]))",
                         "promqlQueryType": "PROM_QL_QUERY_TYPE_INSTANT",
                         "aggregation": "AGGREGATION_LAST",
                         "groupNames": [
@@ -538,7 +538,7 @@
                   "gauge": {
                     "query": {
                       "metrics": {
-                        "promqlQuery": "histogram_quantile(0.95, sum by (le) (sum_over_time(proxy_duration_ms_cx_bucket{route=~\"/api/products.*\"}[15m])))",
+                        "promqlQuery": "histogram_quantile(0.95, sum by (le) (sum_over_time(proxy_duration_ms_cx_bucket{route=~\"/api/products.*\"}[${__range}])))",
                         "aggregation": "AGGREGATION_LAST"
                       }
                     },
@@ -576,7 +576,7 @@
                   "gauge": {
                     "query": {
                       "metrics": {
-                        "promqlQuery": "(sum(sum_over_time(proxy_requests_cx_docs_total{route=~\"/api/products.*\", status_code=~\"5..\"}[15m])) or vector(0)) / sum(sum_over_time(proxy_requests_cx_docs_total{route=~\"/api/products.*\"}[15m]))",
+                        "promqlQuery": "(sum(sum_over_time(proxy_requests_cx_docs_total{route=~\"/api/products.*\", status_code=~\"5..\"}[${__range}])) or vector(0)) / sum(sum_over_time(proxy_requests_cx_docs_total{route=~\"/api/products.*\"}[${__range}]))",
                         "aggregation": "AGGREGATION_LAST"
                       }
                     },

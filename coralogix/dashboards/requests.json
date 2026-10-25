@@ -8,8 +8,8 @@
     "sections": [
       {
         "options": {
-          "name": "Four signals (last 15 min)",
-          "description": "Left to right: errors, latency, saturation, throughput. Top row: the edge, what browsers and API clients see at the proxy. Bottom row: gRPC calls between backend services (no saturation tile: the SDKs report no in-flight or queue metrics).",
+          "name": "Four signals",
+          "description": "Left to right: errors, latency, saturation, throughput, over the dashboard's time range. Top row: the edge, what browsers and API clients see at the proxy. Bottom row: gRPC calls between backend services (no saturation tile: the SDKs report no in-flight or queue metrics).",
           "color": "SECTION_PREDEFINED_COLOR_GREEN"
         },
         "rows": [
@@ -22,7 +22,7 @@
                   "gauge": {
                     "query": {
                       "metrics": {
-                        "promqlQuery": "(sum(sum_over_time(proxy_requests_cx_docs_total{status_code=~\"5..\"}[15m])) or vector(0)) / sum(sum_over_time(proxy_requests_cx_docs_total[15m]))",
+                        "promqlQuery": "(sum(sum_over_time(proxy_requests_cx_docs_total{status_code=~\"5..\"}[${__range}])) or vector(0)) / sum(sum_over_time(proxy_requests_cx_docs_total[${__range}]))",
                         "aggregation": "AGGREGATION_LAST"
                       }
                     },
@@ -60,7 +60,7 @@
                   "gauge": {
                     "query": {
                       "metrics": {
-                        "promqlQuery": "histogram_quantile(0.95, sum by (le) (sum_over_time(proxy_duration_ms_cx_bucket{route!~\".*EventStream\"}[15m])))",
+                        "promqlQuery": "histogram_quantile(0.95, sum by (le) (sum_over_time(proxy_duration_ms_cx_bucket{route!~\".*EventStream\"}[${__range}])))",
                         "aggregation": "AGGREGATION_LAST"
                       }
                     },
@@ -98,7 +98,7 @@
                   "gauge": {
                     "query": {
                       "metrics": {
-                        "promqlQuery": "(sum(sum_over_time(proxy_requests_cx_docs_total{response_flags=~\".*(UT|UF|UC|UO|URX).*\"}[15m])) or vector(0)) / sum(sum_over_time(proxy_requests_cx_docs_total[15m]))",
+                        "promqlQuery": "(sum(sum_over_time(proxy_requests_cx_docs_total{response_flags=~\".*(UT|UF|UC|UO|URX).*\"}[${__range}])) or vector(0)) / sum(sum_over_time(proxy_requests_cx_docs_total[${__range}]))",
                         "aggregation": "AGGREGATION_LAST"
                       }
                     },
@@ -137,7 +137,7 @@
                   "gauge": {
                     "query": {
                       "metrics": {
-                        "promqlQuery": "sum(sum_over_time(proxy_requests_cx_docs_total[15m])) / 900",
+                        "promqlQuery": "sum(sum_over_time(proxy_requests_cx_docs_total[${__range}])) / ${__range_s}",
                         "aggregation": "AGGREGATION_LAST"
                       }
                     },
@@ -172,7 +172,7 @@
                   "gauge": {
                     "query": {
                       "metrics": {
-                        "promqlQuery": "(sum(rate(calls_total{span_kind=\"SPAN_KIND_SERVER\", span_name=~\"oteldemo[.].+Service/.+\", status_code=\"STATUS_CODE_ERROR\"}[15m])) or vector(0)) / sum(rate(calls_total{span_kind=\"SPAN_KIND_SERVER\", span_name=~\"oteldemo[.].+Service/.+\"}[15m]))",
+                        "promqlQuery": "(sum(rate(calls_total{span_kind=\"SPAN_KIND_SERVER\", span_name=~\"oteldemo[.].+Service/.+\", status_code=\"STATUS_CODE_ERROR\"}[${__range}])) or vector(0)) / sum(rate(calls_total{span_kind=\"SPAN_KIND_SERVER\", span_name=~\"oteldemo[.].+Service/.+\"}[${__range}]))",
                         "aggregation": "AGGREGATION_LAST"
                       }
                     },
@@ -210,7 +210,7 @@
                   "gauge": {
                     "query": {
                       "metrics": {
-                        "promqlQuery": "histogram_quantile(0.95, sum by (le) (rate(duration_ms_bucket{span_kind=\"SPAN_KIND_SERVER\", span_name=~\"oteldemo[.].+Service/.+\"}[15m])))",
+                        "promqlQuery": "histogram_quantile(0.95, sum by (le) (rate(duration_ms_bucket{span_kind=\"SPAN_KIND_SERVER\", span_name=~\"oteldemo[.].+Service/.+\"}[${__range}])))",
                         "aggregation": "AGGREGATION_LAST"
                       }
                     },
@@ -248,7 +248,7 @@
                   "gauge": {
                     "query": {
                       "metrics": {
-                        "promqlQuery": "sum(rate(calls_total{span_kind=\"SPAN_KIND_SERVER\", span_name=~\"oteldemo[.].+Service/.+\"}[15m]))",
+                        "promqlQuery": "sum(rate(calls_total{span_kind=\"SPAN_KIND_SERVER\", span_name=~\"oteldemo[.].+Service/.+\"}[${__range}]))",
                         "aggregation": "AGGREGATION_LAST"
                       }
                     },
@@ -400,12 +400,12 @@
                 }
               },
               {
-                "title": "Slowest routes (p95, last hour)",
+                "title": "Slowest routes (p95)",
                 "definition": {
                   "horizontalBarChart": {
                     "query": {
                       "metrics": {
-                        "promqlQuery": "histogram_quantile(0.95, sum by (route, le) (sum_over_time(proxy_duration_ms_cx_bucket{route!~\".*EventStream\"}[1h])))",
+                        "promqlQuery": "histogram_quantile(0.95, sum by (route, le) (sum_over_time(proxy_duration_ms_cx_bucket{route!~\".*EventStream\"}[${__range}])))",
                         "promqlQueryType": "PROM_QL_QUERY_TYPE_INSTANT",
                         "aggregation": "AGGREGATION_LAST",
                         "groupNames": [
@@ -419,12 +419,12 @@
                 }
               },
               {
-                "title": "4xx/5xx by route (last hour)",
+                "title": "4xx/5xx by route",
                 "definition": {
                   "horizontalBarChart": {
                     "query": {
                       "metrics": {
-                        "promqlQuery": "sum by (route, status_code) (sum_over_time(proxy_requests_cx_docs_total{status_code=~\"[45]..\"}[1h]))",
+                        "promqlQuery": "sum by (route, status_code) (sum_over_time(proxy_requests_cx_docs_total{status_code=~\"[45]..\"}[${__range}]))",
                         "promqlQueryType": "PROM_QL_QUERY_TYPE_INSTANT",
                         "aggregation": "AGGREGATION_LAST",
                         "groupNames": [
@@ -697,12 +697,12 @@
                 }
               },
               {
-                "title": "Frontend calls by endpoint (last hour)",
+                "title": "Frontend calls by endpoint",
                 "definition": {
                   "horizontalBarChart": {
                     "query": {
                       "metrics": {
-                        "promqlQuery": "sum by (http_endpoint) (increase(calls_total{service_name=\"frontend\", span_kind=\"SPAN_KIND_SERVER\", http_endpoint!=\"\"}[1h]))",
+                        "promqlQuery": "sum by (http_endpoint) (increase(calls_total{service_name=\"frontend\", span_kind=\"SPAN_KIND_SERVER\", http_endpoint!=\"\"}[${__range}]))",
                         "promqlQueryType": "PROM_QL_QUERY_TYPE_INSTANT",
                         "aggregation": "AGGREGATION_LAST",
                         "groupNames": [
@@ -842,12 +842,12 @@
                 }
               },
               {
-                "title": "Busiest methods (calls, last hour)",
+                "title": "Busiest methods (calls)",
                 "definition": {
                   "horizontalBarChart": {
                     "query": {
                       "metrics": {
-                        "promqlQuery": "sum by (span_name) (increase(calls_total{span_kind=\"SPAN_KIND_SERVER\", span_name=~\"oteldemo[.].+Service/.+\"}[1h]))",
+                        "promqlQuery": "sum by (span_name) (increase(calls_total{span_kind=\"SPAN_KIND_SERVER\", span_name=~\"oteldemo[.].+Service/.+\"}[${__range}]))",
                         "promqlQueryType": "PROM_QL_QUERY_TYPE_INSTANT",
                         "aggregation": "AGGREGATION_LAST",
                         "groupNames": [
@@ -861,12 +861,12 @@
                 }
               },
               {
-                "title": "Slowest methods (p95, last hour)",
+                "title": "Slowest methods (p95)",
                 "definition": {
                   "horizontalBarChart": {
                     "query": {
                       "metrics": {
-                        "promqlQuery": "histogram_quantile(0.95, sum by (span_name, le) (increase(duration_ms_bucket{span_kind=\"SPAN_KIND_SERVER\", span_name=~\"oteldemo[.].+Service/.+\"}[1h])))",
+                        "promqlQuery": "histogram_quantile(0.95, sum by (span_name, le) (increase(duration_ms_bucket{span_kind=\"SPAN_KIND_SERVER\", span_name=~\"oteldemo[.].+Service/.+\"}[${__range}])))",
                         "promqlQueryType": "PROM_QL_QUERY_TYPE_INSTANT",
                         "aggregation": "AGGREGATION_LAST",
                         "groupNames": [

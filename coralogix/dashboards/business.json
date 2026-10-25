@@ -8,8 +8,8 @@
     "sections": [
       {
         "options": {
-          "name": "Business at a glance (last hour)",
-          "description": "Green = the shop is selling normally. Red orders or revenue with healthy infrastructure points at checkout or payments.",
+          "name": "Business at a glance",
+          "description": "Over the dashboard's time range. Green = the shop is selling normally. Red orders or revenue with healthy infrastructure points at checkout or payments.",
           "color": "SECTION_PREDEFINED_COLOR_GREEN"
         },
         "rows": [
@@ -17,13 +17,13 @@
             "height": 12,
             "widgets": [
               {
-                "title": "Orders (1h)",
-                "description": "shop_orders E2M: one event per 'order placed' log in checkout. Baseline ~160/h with the load generator.",
+                "title": "Orders per hour",
+                "description": "shop_orders E2M: one event per 'order placed' log in checkout, averaged per hour over the time range. Baseline ~160/h with the load generator.",
                 "definition": {
                   "gauge": {
                     "query": {
                       "metrics": {
-                        "promqlQuery": "sum(sum_over_time(shop_orders_cx_docs_total[1h])) or vector(0)",
+                        "promqlQuery": "(sum(sum_over_time(shop_orders_cx_docs_total[${__range}])) or vector(0)) / ${__range_s} * 3600",
                         "aggregation": "AGGREGATION_LAST"
                       }
                     },
@@ -56,13 +56,13 @@
                 }
               },
               {
-                "title": "Revenue (1h)",
-                "description": "Sum of demo.order.amount on placed orders (shop_order_value E2M). Mostly USD, some CAD.",
+                "title": "Revenue per hour",
+                "description": "Sum of demo.order.amount on placed orders (shop_order_value E2M), averaged per hour over the time range. Mostly USD, some CAD.",
                 "definition": {
                   "gauge": {
                     "query": {
                       "metrics": {
-                        "promqlQuery": "sum(sum_over_time(shop_order_value_cx_sum[1h])) or vector(0)",
+                        "promqlQuery": "(sum(sum_over_time(shop_order_value_cx_sum[${__range}])) or vector(0)) / ${__range_s} * 3600",
                         "aggregation": "AGGREGATION_LAST"
                       }
                     },
@@ -95,12 +95,12 @@
                 }
               },
               {
-                "title": "Average order value (1h)",
+                "title": "Average order value",
                 "definition": {
                   "gauge": {
                     "query": {
                       "metrics": {
-                        "promqlQuery": "sum(sum_over_time(shop_order_value_cx_sum[1h])) / sum(sum_over_time(shop_order_value_cx_count[1h]))",
+                        "promqlQuery": "sum(sum_over_time(shop_order_value_cx_sum[${__range}])) / sum(sum_over_time(shop_order_value_cx_count[${__range}]))",
                         "aggregation": "AGGREGATION_LAST"
                       }
                     },
@@ -130,13 +130,13 @@
             "height": 12,
             "widgets": [
               {
-                "title": "Checkout success (1h)",
+                "title": "Checkout success",
                 "description": "PlaceOrder calls without error / all PlaceOrder calls (span metrics, unsampled). SLO target 99.5%.",
                 "definition": {
                   "gauge": {
                     "query": {
                       "metrics": {
-                        "promqlQuery": "sum(increase(calls_total{service_name=\"checkout\", span_name=\"oteldemo.CheckoutService/PlaceOrder\", span_kind=\"SPAN_KIND_SERVER\", status_code!=\"STATUS_CODE_ERROR\"}[1h])) / sum(increase(calls_total{service_name=\"checkout\", span_name=\"oteldemo.CheckoutService/PlaceOrder\", span_kind=\"SPAN_KIND_SERVER\"}[1h]))",
+                        "promqlQuery": "sum(increase(calls_total{service_name=\"checkout\", span_name=\"oteldemo.CheckoutService/PlaceOrder\", span_kind=\"SPAN_KIND_SERVER\", status_code!=\"STATUS_CODE_ERROR\"}[${__range}])) / sum(increase(calls_total{service_name=\"checkout\", span_name=\"oteldemo.CheckoutService/PlaceOrder\", span_kind=\"SPAN_KIND_SERVER\"}[${__range}]))",
                         "aggregation": "AGGREGATION_LAST"
                       }
                     },
@@ -169,13 +169,13 @@
                 }
               },
               {
-                "title": "Cart to order conversion (1h)",
+                "title": "Cart to order conversion",
                 "description": "Orders placed / add-to-cart requests. A drop with healthy checkout success means shoppers are abandoning, not failing.",
                 "definition": {
                   "gauge": {
                     "query": {
                       "metrics": {
-                        "promqlQuery": "sum(sum_over_time(shop_orders_cx_docs_total[1h])) / sum(increase(calls_total{service_name=\"frontend\", span_kind=\"SPAN_KIND_SERVER\", http_endpoint=\"POST /api/cart\"}[1h]))",
+                        "promqlQuery": "sum(sum_over_time(shop_orders_cx_docs_total[${__range}])) / sum(increase(calls_total{service_name=\"frontend\", span_kind=\"SPAN_KIND_SERVER\", http_endpoint=\"POST /api/cart\"}[${__range}]))",
                         "aggregation": "AGGREGATION_LAST"
                       }
                     },
@@ -208,13 +208,13 @@
                 }
               },
               {
-                "title": "Edge availability (1h)",
+                "title": "Edge availability",
                 "description": "Requests through the edge proxy that didn't return 5xx (proxy_requests E2M on parsed Envoy logs). SLO target 99.5%.",
                 "definition": {
                   "gauge": {
                     "query": {
                       "metrics": {
-                        "promqlQuery": "sum(sum_over_time(proxy_requests_cx_docs_total{status_code!~\"5..\"}[1h])) / sum(sum_over_time(proxy_requests_cx_docs_total[1h]))",
+                        "promqlQuery": "sum(sum_over_time(proxy_requests_cx_docs_total{status_code!~\"5..\"}[${__range}])) / sum(sum_over_time(proxy_requests_cx_docs_total[${__range}]))",
                         "aggregation": "AGGREGATION_LAST"
                       }
                     },
@@ -374,12 +374,12 @@
             "height": 19,
             "widgets": [
               {
-                "title": "Funnel (last hour)",
+                "title": "Funnel",
                 "definition": {
                   "horizontalBarChart": {
                     "query": {
                       "metrics": {
-                        "promqlQuery": "label_replace(sum(increase(calls_total{service_name=\"frontend\", span_kind=\"SPAN_KIND_SERVER\", http_endpoint=\"GET /api/products/:productId\"}[1h])), \"stage\", \"1. Product views\", \"\", \"\") or label_replace(sum(increase(calls_total{service_name=\"frontend\", span_kind=\"SPAN_KIND_SERVER\", http_endpoint=\"POST /api/cart\"}[1h])), \"stage\", \"2. Added to cart\", \"\", \"\") or label_replace(sum(increase(calls_total{service_name=\"frontend\", span_kind=\"SPAN_KIND_SERVER\", http_endpoint=\"POST /api/checkout\"}[1h])), \"stage\", \"3. Checkout started\", \"\", \"\") or label_replace(sum(sum_over_time(shop_orders_cx_docs_total[1h])), \"stage\", \"4. Orders placed\", \"\", \"\")",
+                        "promqlQuery": "label_replace(sum(increase(calls_total{service_name=\"frontend\", span_kind=\"SPAN_KIND_SERVER\", http_endpoint=\"GET /api/products/:productId\"}[${__range}])), \"stage\", \"1. Product views\", \"\", \"\") or label_replace(sum(increase(calls_total{service_name=\"frontend\", span_kind=\"SPAN_KIND_SERVER\", http_endpoint=\"POST /api/cart\"}[${__range}])), \"stage\", \"2. Added to cart\", \"\", \"\") or label_replace(sum(increase(calls_total{service_name=\"frontend\", span_kind=\"SPAN_KIND_SERVER\", http_endpoint=\"POST /api/checkout\"}[${__range}])), \"stage\", \"3. Checkout started\", \"\", \"\") or label_replace(sum(sum_over_time(shop_orders_cx_docs_total[${__range}])), \"stage\", \"4. Orders placed\", \"\", \"\")",
                         "promqlQueryType": "PROM_QL_QUERY_TYPE_INSTANT",
                         "aggregation": "AGGREGATION_LAST",
                         "groupNames": [
@@ -483,12 +483,12 @@
                 }
               },
               {
-                "title": "Payments by currency (last hour)",
+                "title": "Payments by currency",
                 "definition": {
                   "horizontalBarChart": {
                     "query": {
                       "metrics": {
-                        "promqlQuery": "sum by (demo_payment_currency) (increase(demo_payment_transactions_total[1h]))",
+                        "promqlQuery": "sum by (demo_payment_currency) (increase(demo_payment_transactions_total[${__range}]))",
                         "promqlQueryType": "PROM_QL_QUERY_TYPE_INSTANT",
                         "aggregation": "AGGREGATION_LAST",
                         "groupNames": [
@@ -595,13 +595,13 @@
             "height": 19,
             "widgets": [
               {
-                "title": "Where shoppers hit errors (5xx by route, last hour)",
+                "title": "Where shoppers hit errors (5xx by route)",
                 "description": "proxy_requests E2M: 5xx responses at the edge, by normalized route and status",
                 "definition": {
                   "horizontalBarChart": {
                     "query": {
                       "metrics": {
-                        "promqlQuery": "sum by (route, status_code) (sum_over_time(proxy_requests_cx_docs_total{status_code=~\"5..\"}[1h]))",
+                        "promqlQuery": "sum by (route, status_code) (sum_over_time(proxy_requests_cx_docs_total{status_code=~\"5..\"}[${__range}]))",
                         "promqlQueryType": "PROM_QL_QUERY_TYPE_INSTANT",
                         "aggregation": "AGGREGATION_LAST",
                         "groupNames": [

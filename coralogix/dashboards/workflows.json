@@ -9,7 +9,7 @@
       {
         "options": {
           "name": "Four signals",
-          "description": "Left to right: errors, latency, saturation, throughput, for the last hour of the selected range. Green = every published order was consumed, quickly and without errors.",
+          "description": "Left to right: errors, latency, saturation, throughput, over the dashboard's time range. Green = every published order was consumed, quickly and without errors.",
           "color": "SECTION_PREDEFINED_COLOR_GREEN"
         },
         "rows": [
@@ -17,12 +17,12 @@
             "height": 12,
             "widgets": [
               {
-                "title": "Errors \u00b7 Consumer errors (1h)",
+                "title": "Errors \u00b7 Consumer errors",
                 "definition": {
                   "gauge": {
                     "query": {
                       "metrics": {
-                        "promqlQuery": "sum(increase(calls_total{span_kind=\"SPAN_KIND_CONSUMER\", span_name=~\"orders .+\", status_code=\"STATUS_CODE_ERROR\"}[1h])) or vector(0)",
+                        "promqlQuery": "sum(increase(calls_total{span_kind=\"SPAN_KIND_CONSUMER\", span_name=~\"orders .+\", status_code=\"STATUS_CODE_ERROR\"}[${__range}])) or vector(0)",
                         "aggregation": "AGGREGATION_LAST"
                       }
                     },
@@ -61,7 +61,7 @@
                   "gauge": {
                     "query": {
                       "metrics": {
-                        "promqlQuery": "histogram_quantile(0.95, sum by (le) (rate(duration_ms_bucket{span_kind=\"SPAN_KIND_CONSUMER\", span_name=~\"orders .+\"}[1h])))",
+                        "promqlQuery": "histogram_quantile(0.95, sum by (le) (rate(duration_ms_bucket{span_kind=\"SPAN_KIND_CONSUMER\", span_name=~\"orders .+\"}[${__range}])))",
                         "aggregation": "AGGREGATION_LAST"
                       }
                     },
@@ -100,7 +100,7 @@
                   "gauge": {
                     "query": {
                       "metrics": {
-                        "promqlQuery": "max(max_over_time(kafka_consumer_records_lag_max[5m])) or vector(0)",
+                        "promqlQuery": "max(max_over_time(kafka_consumer_records_lag_max[${__range}])) or vector(0)",
                         "aggregation": "AGGREGATION_LAST"
                       }
                     },
@@ -131,15 +131,15 @@
                     "displaySeriesName": false
                   }
                 },
-                "description": "Records waiting to be read (max over partitions). Only fraud-detection's Java client reports it"
+                "description": "Most records waiting to be read, over partitions and the time range. Only fraud-detection's Java client reports it"
               },
               {
-                "title": "Saturation \u00b7 Unconsumed orders (1h)",
+                "title": "Saturation \u00b7 Unconsumed orders",
                 "definition": {
                   "gauge": {
                     "query": {
                       "metrics": {
-                        "promqlQuery": "clamp_min(sum(increase(calls_total{service_name=\"checkout\", span_kind=\"SPAN_KIND_PRODUCER\", span_name=\"orders publish\"}[1h])) - min(sum by (service_name) (increase(calls_total{span_kind=\"SPAN_KIND_CONSUMER\", span_name=\"orders receive\"}[1h]))), 0)",
+                        "promqlQuery": "clamp_min(sum(increase(calls_total{service_name=\"checkout\", span_kind=\"SPAN_KIND_PRODUCER\", span_name=\"orders publish\"}[${__range}])) - min(sum by (service_name) (increase(calls_total{span_kind=\"SPAN_KIND_CONSUMER\", span_name=\"orders receive\"}[${__range}]))), 0)",
                         "aggregation": "AGGREGATION_LAST"
                       }
                     },
@@ -178,7 +178,7 @@
                   "gauge": {
                     "query": {
                       "metrics": {
-                        "promqlQuery": "sum(rate(calls_total{service_name=\"checkout\", span_kind=\"SPAN_KIND_PRODUCER\", span_name=\"orders publish\"}[15m])) * 60",
+                        "promqlQuery": "sum(rate(calls_total{service_name=\"checkout\", span_kind=\"SPAN_KIND_PRODUCER\", span_name=\"orders publish\"}[${__range}])) * 60",
                         "aggregation": "AGGREGATION_LAST"
                       }
                     },

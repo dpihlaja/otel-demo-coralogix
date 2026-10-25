@@ -9,7 +9,7 @@
       {
         "options": {
           "name": "Cluster at a glance",
-          "description": "Top row: errors (anything not ready or restarting). Bottom row: saturation (how close the node and containers are to their limits). Green = nothing to do; any amber or red tile names the section below to open.",
+          "description": "Top row: errors (anything not ready now, or restarted in the time range). Bottom row: saturation (how close the node and containers are to their limits). Green = nothing to do; any amber or red tile names the section below to open.",
           "color": "SECTION_PREDEFINED_COLOR_GREEN"
         },
         "rows": [
@@ -121,13 +121,13 @@
                 }
               },
               {
-                "title": "Errors \u00b7 Container restarts (1h)",
-                "description": "Restarts across all containers in the last hour",
+                "title": "Errors \u00b7 Container restarts",
+                "description": "Restarts across all containers in the time range",
                 "definition": {
                   "gauge": {
                     "query": {
                       "metrics": {
-                        "promqlQuery": "sum(increase(k8s_container_restarts__restart_[1h]))",
+                        "promqlQuery": "sum(increase(k8s_container_restarts__restart_[${__range}]))",
                         "aggregation": "AGGREGATION_LAST"
                       }
                     },
